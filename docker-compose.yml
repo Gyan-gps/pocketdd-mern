@@ -25,6 +25,7 @@ services:
       - '${WEB_PORT:-3000}:3000'
     volumes:
       - ./web/src:/app/src
+      - ./web/public:/app/public
     command: npm run dev
     depends_on: [api]
     networks: [sail]

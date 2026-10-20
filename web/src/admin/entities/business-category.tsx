@@ -51,9 +51,10 @@ export const businessCategory: EntityUi = {
     { name: 'status', label: 'Status', type: 'select' },
     { name: 'sorting', label: 'Sort By', type: 'select' },
   ],
-  topButtons: () => [{ label: '☁ Import Category Data', href: '/pocketddadmin/import-category-data' }],
+  // importCategoryData(): btn-success, added 'first' (its fa-cloud icon never renders: Font Awesome isn't loaded)
+  topButtons: () => [{ label: 'Import Category Data', href: '/pocketddadmin/import-category-data', variant: 'success', position: 'first' }],
   lineButtons: (row) => [
-    { label: '+ Add Sub Categories', href: `/pocketddadmin/business-sub-category/create?parent_id=${row.id}` },
-    ...(row.has_sub_categories ? [{ label: '👁 View Sub Categories', href: `/pocketddadmin/business-sub-category?parent_id=${row.id}` }] : []),
+    { label: 'Add Sub Categories', icon: 'la-plus', href: `/pocketddadmin/business-sub-category/create?parent_id=${row.id}` },
+    ...(row.has_sub_categories ? [{ label: 'View Sub Categories', icon: 'la-eye', href: `/pocketddadmin/business-sub-category?parent_id=${row.id}` }] : []),
   ],
 };

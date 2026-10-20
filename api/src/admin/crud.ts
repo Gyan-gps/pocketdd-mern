@@ -130,7 +130,8 @@ export function crudRouter(cfg: CrudConfig): Router {
         const sortBy = q.sort ? String(q.sort) : '';
         if (sortBy && (cfg.list.sortable ?? []).includes(sortBy)) order.push([sortBy, q.dir === 'desc' ? 'desc' : 'asc']);
         order.push(...(filtered.orderBy ?? cfg.list.orderBy ?? []));
-        if (!order.length) order.push(['id', 'desc']);
+        // Backpack always appends the primary key DESC (stable order for ties) unless already ordered by it.
+        if (!order.some(([c]) => c === 'id')) order.push(['id', 'desc']);
         const orderSql = `ORDER BY ${order.map(([c, d]) => `${ident(c)} ${d === 'desc' ? 'DESC' : 'ASC'}`).join(', ')}`;
         const total = Number((await first(`SELECT COUNT(*) AS c FROM ${ident(cfg.table)} ${whereSql}`, params))?.c ?? 0);
         const rows = await all(
@@ -138,8 +139,13 @@ export function crudRouter(cfg: CrudConfig): Router {
           [...params, length, (page - 1) * length],
         );
         const data = await Promise.all(rows.map((row) => serialize(row, req)));
-        if (cfg.list.filterOptions) res.json({ data, total, page, length, filters: await cfg.list.filterOptions() });
-        else res.json({ data, total, page, length });
+        // DataTables recordsTotal: the whole table, before clauses, filters and search
+        // ("Showing 1 to 14 of 14 entries (filtered from 16 total entries)").
+        const totalAll = whereSql
+          ? Number((await first(`SELECT COUNT(*) AS c FROM ${ident(cfg.table)}`))?.c ?? 0)
+          : total;
+        const body = { data, total, totalAll, page, length };
+        res.json(cfg.list.filterOptions ? { ...body, filters: await cfg.list.filterOptions() } : body);
       } catch (e) {
         next(e);
       }

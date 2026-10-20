@@ -1,67 +1,193 @@
-:root {
-  --bg: #f4f6fa;
-  --surface: #ffffff;
-  --text: #1f2937;
-  --muted: #6b7280;
-  --border: #e5e7eb;
-  --primary: #467fd0;
-  --primary-text: #ffffff;
-  --sidebar: #1e293b;
-  --sidebar-text: #cbd5e1;
-  --sidebar-active: #334155;
-  --danger: #dc2626;
-  --success: #16a34a;
+@import 'tailwindcss';
+
+/*
+ * Design tokens copied from the Backpack admin this panel replaces:
+ * CoreUI 4.2.6 + vendor/backpack/theme-coreuiv4/resources/assets/css/coreui4.css.
+ */
+@theme {
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans', 'Liberation Sans', Arial, sans-serif;
+  --font-hindi: 'k010', sans-serif;
+
+  --color-primary: #7c69ef;
+  --color-primary-hover: #6852ed;
+  --color-body: #f1f4f8;
+  --color-ink: rgba(44, 56, 74, 0.95);
+  --color-muted: #869ab8;
+  --color-line: #d8dbe0;
+  --color-input-line: #0028641f;
+  --color-addon: #f9fbfd;
+  --color-sidebar-top: #2c2950;
+  --color-sidebar-bottom: #5c4fa9;
+  --color-avatar: #00a65a;
+
+  /* CoreUI 4 contextual colours (dashboard widgets, buttons, alerts) */
+  --color-cui-info: #3399ff;
+  --color-cui-success: #2eb85c;
+  --color-cui-warning: #f9b115;
+  --color-cui-danger: #e55353;
+  --color-cui-secondary: #acb3bd;
 }
 
-* { box-sizing: border-box; }
-body { margin: 0; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); }
-a { color: var(--primary); text-decoration: none; }
-
-.shell { display: flex; min-height: 100vh; }
-.sidebar { width: 250px; background: var(--sidebar); color: var(--sidebar-text); padding: 16px 0; flex-shrink: 0; }
-.sidebar .brand { color: #fff; font-weight: 700; padding: 0 20px 16px; display: block; }
-.sidebar a, .sidebar summary { display: block; color: var(--sidebar-text); padding: 9px 20px; cursor: pointer; font-size: 14px; }
-.sidebar a:hover, .sidebar summary:hover, .sidebar a.active { background: var(--sidebar-active); color: #fff; }
-.sidebar details a { padding-left: 40px; }
-.sidebar .disabled { opacity: 0.45; cursor: not-allowed; }
-.main { flex: 1; min-width: 0; }
-.topbar { display: flex; justify-content: flex-end; align-items: center; gap: 12px; background: var(--surface); border-bottom: 1px solid var(--border); padding: 10px 24px; font-size: 14px; }
-.content { padding: 24px; }
-
-.page-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; }
-.page-head h1 { margin: 0; font-size: 24px; text-transform: capitalize; }
-.page-head small { color: var(--muted); }
-
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 16px; }
-.toolbar { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
-.btn { display: inline-block; border: 1px solid var(--border); background: var(--surface); color: var(--text); padding: 7px 14px; border-radius: 4px; font-size: 14px; cursor: pointer; }
-.btn-primary { background: var(--primary); border-color: var(--primary); color: var(--primary-text); }
-.btn-link { border: none; background: none; color: var(--primary); padding: 0 6px; }
-.btn-danger { color: var(--danger); }
-
-table.list { width: 100%; border-collapse: collapse; font-size: 14px; }
-table.list th, table.list td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
-table.list th a { color: var(--text); }
-.pager { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; font-size: 14px; color: var(--muted); }
-
-.form-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
-.form-group label { display: block; font-weight: 600; font-size: 14px; margin-bottom: 6px; }
-.form-group input[type='text'], .form-group input[type='number'], .form-group input[type='email'], .form-group input[type='date'], .form-group select, .form-group textarea {
-  width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px; font-size: 14px; background: #fff;
+/* resources/views/vendor/backpack/theme-coreuiv4/inc/head.blade.php — Hindi fonts */
+@font-face {
+  font-family: 'k010';
+  src: url('/fonts/k010.woff') format('woff');
+  unicode-range: U+0000-024F;
 }
-.form-group .invalid { border-color: var(--danger); }
-.form-group .error { color: var(--danger); font-size: 13px; margin-top: 4px; }
-.form-group .hint { color: var(--muted); font-size: 13px; margin-top: 4px; }
-.form-actions { margin-top: 20px; display: flex; gap: 8px; }
-.alert { padding: 10px 14px; border-radius: 4px; margin-bottom: 16px; font-size: 14px; }
-.alert-success { background: #dcfce7; color: #166534; }
-.alert-danger { background: #fee2e2; color: #991b1b; }
+@font-face {
+  font-family: 'k010';
+  src: local('Nirmala UI'), url('/fonts/NotoSansDevanagari-Regular.ttf') format('truetype');
+  unicode-range: U+0900-097F;
+  size-adjust: 70%;
+}
 
-.login-wrap { min-height: 100vh; display: grid; place-items: center; }
-.login-card { width: 360px; }
+@layer base {
+  body {
+    /* coreui4.css: body { font-size: 90% } — on body only, so rem-based controls stay 16px */
+    @apply bg-body font-sans text-[0.9rem] text-ink antialiased;
+  }
+  a {
+    @apply text-primary no-underline hover:underline;
+  }
+}
 
-@media (max-width: 800px) {
-  .shell { flex-direction: column; }
-  .sidebar { width: 100%; }
-  .form-grid > * { grid-column: span 12 !important; }
+/*
+ * Shared component classes. Screens and custom field components use these names, so the whole
+ * admin follows the Backpack look from one place.
+ */
+@layer components {
+  /* ---------- page header ---------- */
+  .page-head {
+    @apply mb-2 flex flex-wrap items-baseline gap-x-2 px-0;
+  }
+  .page-head h1 {
+    @apply m-0 text-[2rem] leading-tight font-light capitalize;
+  }
+  .page-head small,
+  .page-head .subheading {
+    @apply text-ink;
+  }
+
+  /* ---------- cards ---------- */
+  .card {
+    @apply mb-6 rounded border border-line bg-white p-4;
+  }
+  .card-header {
+    @apply -m-4 mb-4 rounded-t border-b border-line bg-[#f9fafb] px-4 py-2.5;
+  }
+
+  /* ---------- buttons (CoreUI .btn) ---------- */
+  .btn {
+    @apply inline-flex cursor-pointer items-center gap-1.5 rounded border border-transparent bg-white px-3 py-1.5 text-[1rem] leading-normal text-ink no-underline transition-colors hover:no-underline disabled:cursor-not-allowed disabled:opacity-65;
+  }
+  .btn-primary {
+    @apply border-primary bg-primary text-white hover:border-primary-hover hover:bg-primary-hover hover:text-white;
+  }
+  .btn-success {
+    @apply border-cui-success bg-cui-success text-[#000015] hover:brightness-95;
+  }
+  .btn-info {
+    @apply border-cui-info bg-cui-info text-ink hover:brightness-95;
+  }
+  .btn-outline-primary {
+    @apply border-primary bg-transparent text-primary hover:bg-primary hover:text-white;
+  }
+  .btn-secondary {
+    @apply border-[#a7aeb9] bg-cui-secondary text-ink hover:bg-[#aaaeb4];
+  }
+  .btn-outline {
+    @apply border-line bg-white hover:bg-addon;
+  }
+  .btn-link {
+    @apply inline-flex cursor-pointer items-center gap-1 border-0 bg-transparent px-1.5 py-0 text-primary hover:underline;
+  }
+  .btn-danger {
+    @apply text-cui-danger;
+  }
+
+  /* ---------- forms ---------- */
+  .form-grid {
+    @apply grid grid-cols-12 gap-x-6;
+  }
+  .form-group {
+    @apply mb-5;
+  }
+  .form-group > label {
+    @apply mb-2 block font-normal;
+  }
+  .form-group > label .required {
+    @apply text-cui-danger;
+  }
+  .form-group input[type='text'],
+  .form-group input[type='number'],
+  .form-group input[type='email'],
+  .form-group input[type='date'],
+  .form-group input[type='time'],
+  .form-group input[type='search'],
+  .form-group input[type='password'],
+  .form-group select,
+  .form-group textarea,
+  .form-control {
+    @apply block w-full rounded-[0.2rem] border border-input-line bg-white px-3 py-1.5 text-[1rem] text-ink outline-none placeholder:text-muted focus:border-[#beb4f7] focus:ring-4 focus:ring-primary/25;
+  }
+  .form-group input[type='file'] {
+    @apply block w-full text-[0.95rem] file:mr-3 file:rounded file:border-0 file:bg-addon file:px-3 file:py-1.5;
+  }
+  .form-group input[type='checkbox'] {
+    @apply size-4 accent-primary;
+  }
+  .form-group .invalid {
+    @apply border-cui-danger;
+  }
+  .form-group .error {
+    @apply mt-1 text-[0.875rem] text-cui-danger;
+  }
+  .form-group .hint {
+    @apply mt-1 text-[0.8rem] text-ink/75;
+  }
+  .form-actions {
+    @apply mt-4 flex flex-wrap items-center gap-2;
+  }
+
+  /* ---------- alerts ---------- */
+  .alert {
+    @apply mb-4 rounded border px-4 py-3;
+  }
+  .alert-success {
+    @apply border-[#c4e9d1] bg-[#d5f1de] text-[#1b6e37];
+  }
+  .alert-danger {
+    @apply border-[#f7cbcb] bg-[#fadddd] text-[#893232];
+  }
+
+  /* ---------- list table (Backpack #crudTable) ---------- */
+  .toolbar {
+    @apply mb-2 flex flex-wrap items-center justify-between gap-3;
+  }
+  table.list {
+    @apply w-full border-separate border-spacing-0 overflow-hidden rounded border border-line bg-white;
+  }
+  table.list th,
+  table.list td {
+    @apply border-b border-line px-2.5 py-4 text-left align-middle leading-none whitespace-nowrap; /* DataTables .nowrap */
+  }
+  table.list thead th,
+  table.list tfoot th {
+    @apply py-4 font-normal whitespace-nowrap;
+  }
+  table.list thead th a {
+    @apply flex items-center justify-between gap-2 text-ink hover:no-underline;
+  }
+  table.list tbody td {
+    @apply py-[1.05rem]; /* Backpack body rows ≈ 55px */
+  }
+  table.list tbody tr:nth-child(odd) {
+    @apply bg-[#f3f4f7];
+  }
+  table.list tbody tr:hover {
+    @apply bg-[#e9eaf3];
+  }
+  .pager {
+    @apply mt-4 flex flex-wrap items-center justify-between gap-3;
+  }
 }

@@ -15,6 +15,75 @@ const TRANSFORMS = {
 
 const str = (v: unknown) => (v === null || v === undefined ? '' : String(v));
 
+/** Backpack upload field: a read-only box showing the chosen file name, with "Browse" on the right. */
+function UploadInput({ id, name, accept, invalid }: { id: string; name: string; accept?: string; invalid: boolean }) {
+  const [fileName, setFileName] = useState('');
+  return (
+    <label
+      htmlFor={id}
+      className={`flex cursor-pointer overflow-hidden rounded-[0.2rem] border bg-white ${invalid ? 'border-cui-danger' : 'border-input-line'}`}
+    >
+      <span className="flex-1 truncate px-3 py-1.5 text-ink">{fileName}</span>
+      <span className="border-l border-input-line bg-addon px-3 py-1.5">Browse</span>
+      <input id={id} name={name} type="file" accept={accept} className="sr-only" onChange={(e) => setFileName(e.target.files?.[0]?.name ?? '')} />
+    </label>
+  );
+}
+
+const SAVE_ACTIONS = [
+  { value: 'save_and_back', label: 'Save and back' },
+  { value: 'save_and_edit', label: 'Save and edit this item' },
+  { value: 'save_and_new', label: 'Save and new item' },
+  { value: 'save_and_preview', label: 'Save and preview' },
+] as const;
+
+/** Backpack's split save button: the main action plus a menu of the other save actions. */
+function SaveButton({ pending, label, canPreview }: { pending: boolean; label: string; canPreview: boolean }) {
+  const [action, setAction] = useState<string>('save_and_back');
+  const [open, setOpen] = useState(false);
+  const current = SAVE_ACTIONS.find((a) => a.value === action)!;
+  const others = SAVE_ACTIONS.filter((a) => a.value !== action && (a.value !== 'save_and_preview' || canPreview));
+  return (
+    <div className="relative inline-flex">
+      <input type="hidden" name="_save_action" value={action} />
+      <button className="btn btn-success rounded-r-none text-white" type="submit" disabled={pending}>
+        <i className="la la-save" aria-hidden /> {pending ? 'Saving…' : action === 'save_and_back' ? label : current.label}
+      </button>
+      <button
+        type="button"
+        className="btn btn-success rounded-l-none border-l-white/30 px-2 text-white"
+        aria-label="More save options"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span className="text-[0.6rem]" aria-hidden>
+          ▼
+        </span>
+      </button>
+      {open && (
+        <ul role="menu" className="absolute bottom-full left-0 z-20 mb-1 min-w-52 rounded border border-line bg-white py-1 shadow-md">
+          {others.map((a) => (
+            <li key={a.value}>
+              <button
+                type="button"
+                role="menuitem"
+                className="w-full cursor-pointer px-4 py-1.5 text-left hover:bg-addon"
+                onClick={() => {
+                  setAction(a.value);
+                  setOpen(false);
+                }}
+              >
+                {a.label}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 /** Field configs hold functions/RegExps, so they are resolved here on the client from the registry. */
 export function CrudForm({
   entity,
@@ -22,6 +91,7 @@ export function CrudForm({
   initial,
   submitLabel,
   formOptions,
+  required = [],
 }: {
   entity: string;
   id: string | null;
@@ -29,6 +99,8 @@ export function CrudForm({
   submitLabel: string;
   /** Server-computed field options (GET /<route>/form-options). */
   formOptions?: Record<string, Option[]>;
+  /** Field names whose validation rules include `required` (shown with a red asterisk, as in Backpack). */
+  required?: string[];
 }) {
   const ui = getEntity(entity)!;
   const fields: FieldDef[] = id ? (ui.updateFields ?? ui.createFields) : ui.createFields;
@@ -85,8 +157,13 @@ export function CrudForm({
   }
 
   return (
-    <form action={action} className="card">
-      {state.message && <div className="alert alert-danger">{state.message}</div>}
+    <form action={action}>
+      {state.message && (
+        <div className="alert alert-danger" role="alert">
+          {state.message}
+        </div>
+      )}
+      <div className="card">
       <div className="form-grid">
         {fields.map((f) => {
           const err = state.errors?.[f.name]?.[0];
@@ -101,7 +178,7 @@ export function CrudForm({
           switch (f.type) {
             case 'checkbox':
               input = (
-                <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontWeight: 600 }}>
+                <label className="mt-8 flex items-center gap-2">
                   <input type="hidden" name={f.name} value={shown[f.name] === '1' ? '1' : '0'} />
                   <input type="checkbox" checked={shown[f.name] === '1'} onChange={(e) => set(f.name, e.target.checked ? '1' : '0')} />
                   {f.label}
@@ -142,10 +219,32 @@ export function CrudForm({
               );
               break;
             }
+            case 'radio':
+              input = (
+                <div className="flex flex-wrap gap-x-4 gap-y-1" role="radiogroup" aria-labelledby={`${f.name}-label`}>
+                  {(f.options ?? formOptions?.[f.name] ?? []).map((o) => (
+                    <label key={o.value} className="flex items-center gap-1.5">
+                      <input
+                        type="radio"
+                        name={f.name}
+                        value={o.value}
+                        checked={shown[f.name] === o.value}
+                        onChange={() => set(f.name, o.value)}
+                        className="size-4 accent-primary"
+                      />
+                      {o.label}
+                    </label>
+                  ))}
+                </div>
+              );
+              break;
+            case 'heading':
+              input = <h5 className="mt-2 text-center text-[1.25rem]">{f.label}</h5>;
+              break;
             case 'select':
               input = (
                 <select {...common} value={shown[f.name]} onChange={(e) => set(f.name, e.target.value)}>
-                  <option value="">-</option>
+                  <option value="">{f.select2 ? 'Select an entry' : '-'}</option>
                   {(f.dependsOn
                     ? (f.dependsOn.options[shown[f.dependsOn.field] ?? ''] ?? [])
                     : (f.options ?? formOptions?.[f.name] ?? [])
@@ -159,7 +258,7 @@ export function CrudForm({
               break;
             case 'image':
             case 'upload':
-              input = <input type="file" name={f.name} accept={f.type === 'image' ? 'image/*' : undefined} />;
+              input = <UploadInput id={f.name} name={f.name} accept={f.type === 'image' ? 'image/*' : undefined} invalid={!!err} />;
               break;
             case 'custom':
               input = f.custom?.({ field: f, values: shown, set, initial, errors: state.errors, formOptions });
@@ -186,7 +285,12 @@ export function CrudForm({
               className="form-group"
               style={{ gridColumn: `span ${f.size ?? 12}`, ...(f.visibleWhen && !f.visibleWhen(shown) ? { display: 'none' } : {}) }}
             >
-              {f.type !== 'checkbox' && f.type !== 'hidden' && <label htmlFor={f.name}>{f.label ?? f.name}</label>}
+              {f.type !== 'checkbox' && f.type !== 'hidden' && f.type !== 'heading' && (
+                <label htmlFor={f.name} id={`${f.name}-label`}>
+                  {f.label ?? f.name}
+                  {(f.required || required.includes(f.name)) && <span className="required"> *</span>}
+                </label>
+              )}
               {input}
               {err && <div className="error">{err}</div>}
               {f.hint && <div className="hint">{f.hint}</div>}
@@ -194,12 +298,12 @@ export function CrudForm({
           );
         })}
       </div>
+      </div>
+      {/* crud/inc/form_save_buttons.blade.php */}
       <div className="form-actions">
-        <button className="btn btn-primary" type="submit" disabled={pending}>
-          {pending ? 'Saving…' : submitLabel}
-        </button>
-        <Link className="btn" href={`/pocketddadmin/${entity}`}>
-          Cancel
+        <SaveButton pending={pending} label={submitLabel} canPreview={ui.operations.includes('show')} />
+        <Link className="btn btn-secondary" href={`/pocketddadmin/${entity}`}>
+          <i className="la la-ban" aria-hidden /> Cancel
         </Link>
       </div>
     </form>

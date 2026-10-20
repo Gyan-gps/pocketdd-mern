@@ -23,7 +23,27 @@ adminRoutes.use(businessRoutes); // admin/business-detail/fetch/pincode
 adminRoutes.use(dashboardRoutes); // charts/*, dashboard, import-pincode-data, insertPinCodeData
 for (const cfg of ENTITIES) adminRoutes.use(`/${cfg.route}`, crudRouter(cfg));
 
-/** Entity list for the panel's navigation (routes that exist on the API). */
+/**
+ * Fields whose FormRequest rules start with or contain `required` — Backpack marks these with a red
+ * asterisk. Only static rule sets can be inspected; rule closures are skipped.
+ */
+function requiredFields(rules: unknown): string[] {
+  if (!rules || typeof rules !== 'object') return [];
+  return Object.entries(rules as Record<string, string>)
+    .filter(([name, r]) => !name.includes('*') && typeof r === 'string' && r.split('|').includes('required'))
+    .map(([name]) => name);
+}
+
+/** Entity list for the panel's navigation, plus the required fields per form. */
 adminRoutes.get('/entities', (_req, res) => {
-  res.json(ENTITIES.map((e) => ({ route: e.route, operations: e.operations })));
+  res.json(
+    ENTITIES.map((e) => ({
+      route: e.route,
+      operations: e.operations,
+      required: {
+        create: requiredFields(e.validation?.create?.rules),
+        update: requiredFields(e.validation?.update?.rules),
+      },
+    })),
+  );
 });

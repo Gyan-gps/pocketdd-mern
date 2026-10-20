@@ -1,9 +1,13 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getEntity } from '@/admin/registry';
+import { BackLink } from '@/components/admin/BackLink';
 import { Cell } from '@/components/admin/Cell';
+import { PageHeader, crudBreadcrumbs } from '@/components/admin/PageHeader';
+import { PrintButton } from '@/components/admin/PrintButton';
 import { ApiError, adminFetch } from '@/lib/api';
 
+/** Backpack ShowOperation (crud/show.blade.php): "Label:" / value rows, then the line buttons. */
 export default async function ShowPage({ params }: { params: Promise<{ entity: string; id: string }> }) {
   const { entity, id } = await params;
   const ui = getEntity(entity);
@@ -13,36 +17,37 @@ export default async function ShowPage({ params }: { params: Promise<{ entity: s
     throw e;
   });
   const cols = ui.showColumns ?? ui.columns;
+
   return (
     <>
-      <div className="page-head">
-        <h1>{ui.plural}</h1>
-        <small>Preview {ui.singular}.</small>
-      </div>
-      <div className="card">
-        <table className="list">
-          <tbody>
-            {cols.map((c) => (
-              <tr key={c.name}>
-                <th style={{ width: 240 }}>{c.label ?? c.name}</th>
-                <td>
-                  <Cell col={c} row={row} />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <div className="form-actions">
+      <PageHeader title={ui.plural} subheading={`Preview ${ui.singular}`} breadcrumbs={crudBreadcrumbs(entity, ui.plural, 'Preview')}>
+        {ui.operations.includes('list') && <BackLink entity={entity} plural={ui.plural} />}
+        <span className="ml-auto">
+          <PrintButton />
+        </span>
+      </PageHeader>
+      <table className="list mt-4">
+        <tbody>
+          {cols.map((c) => (
+            <tr key={c.name}>
+              <td className="w-1/2">{c.label ?? c.name}:</td>
+              <td>
+                <Cell col={c} row={row} />
+              </td>
+            </tr>
+          ))}
           {ui.operations.includes('update') && (
-            <Link className="btn btn-primary" href={`/pocketddadmin/${entity}/${id}/edit`}>
-              Edit
-            </Link>
+            <tr>
+              <td>Actions</td>
+              <td>
+                <Link className="btn-link" href={`/pocketddadmin/${entity}/${id}/edit`}>
+                  <i className="la la-edit" aria-hidden /> Edit
+                </Link>
+              </td>
+            </tr>
           )}
-          <Link className="btn" href={`/pocketddadmin/${entity}`}>
-            Back to all {ui.plural.toLowerCase()}
-          </Link>
-        </div>
-      </div>
+        </tbody>
+      </table>
     </>
   );
 }

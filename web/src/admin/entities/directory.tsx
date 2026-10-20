@@ -349,7 +349,8 @@ export const pincode: EntityUi = {
   operations: ['list', 'create', 'update', 'show'],
   formOptions: true,
   filters: [{ name: 'state', label: 'State', type: 'select' }],
-  topButtons: () => [{ label: '☁ Import Pincode Data', href: '/pocketddadmin/import-pincode-data' }],
+  // PinCodeCrudController: the importPincodeData top button is commented out, so the list has none
+  // (the import page itself stays reachable at /pocketddadmin/import-pincode-data).
   columns: [
     text('pin_code', 'PinCode'),
     text('pincode_area', 'PinCode Area'),

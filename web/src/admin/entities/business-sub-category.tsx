@@ -51,8 +51,19 @@ export const businessSubCategory: EntityUi = {
     { name: 'sorting', label: 'Sort By', type: 'select' },
   ],
   topButtons: (q) => [
-    { label: '☁ Import Sub-Category Data', href: '/pocketddadmin/import-sub-category-data' },
-    ...(q.parent_id ? [{ label: '+ Add Sub-Category', href: `/pocketddadmin/business-sub-category/create?parent_id=${q.parent_id}` }] : []),
+    // addCategory() then importSubCategoryData(), both 'first' → addCategory ends up leftmost
+    ...(q.parent_id
+      ? [
+          {
+            label: 'Add Sub-Category',
+            icon: 'la-plus',
+            variant: 'outline-primary' as const,
+            position: 'first' as const,
+            href: `/pocketddadmin/business-sub-category/create?parent_id=${q.parent_id}`,
+          },
+        ]
+      : []),
+    { label: 'Import Sub-Category Data', icon: 'la-cloud-upload', variant: 'outline-primary', position: 'first', href: '/pocketddadmin/import-sub-category-data' },
   ],
   // redirect(backpack_url('business-sub-category?parent_id=' . request('parent_id')))
   saveRedirect: (v) => `business-sub-category?parent_id=${encodeURIComponent(v.parent_id ?? '')}`,

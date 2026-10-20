@@ -20,6 +20,8 @@ export async function saveEntry(entity: string, id: string | null, _prev: SaveSt
   let body: BodyInit;
   // API-decided redirect (overridden store()/update(), e.g. advertisment/create?client_name=<new id>).
   let apiRedirect: string | null = null;
+  let savedId: string | null = id;
+  const saveAction = values._save_action ?? 'save_and_back';
   if (hasFiles) {
     body = form;
   } else {
@@ -35,8 +37,9 @@ export async function saveEntry(entity: string, id: string | null, _prev: SaveSt
     body = JSON.stringify(payload);
   }
   try {
-    const saved = await adminFetch<{ redirect?: string | null } | null>(id ? `/${entity}/${id}` : `/${entity}`, { method: id ? 'PUT' : 'POST', body });
+    const saved = await adminFetch<{ id?: number; redirect?: string | null } | null>(id ? `/${entity}/${id}` : `/${entity}`, { method: id ? 'PUT' : 'POST', body });
     apiRedirect = saved && typeof saved === 'object' ? (saved.redirect ?? null) : null;
+    savedId = saved && typeof saved === 'object' && saved.id ? String(saved.id) : id;
   } catch (e) {
     if (e instanceof ApiError && e.status === 422) {
       const b = e.body as { message: string; errors: Record<string, string[]> };
@@ -47,6 +50,11 @@ export async function saveEntry(entity: string, id: string | null, _prev: SaveSt
   revalidatePath(`${ADMIN_PREFIX}/${entity}`);
   // Backpack save action "save_and_back" + flash message.
   const msg = id ? 'The item has been modified successfully.' : 'The item has been added successfully.';
+  // Backpack save actions other than "save and back" (crud/inc/form_save_buttons.blade.php).
+  const flash = `saved=${encodeURIComponent(msg)}`;
+  if (saveAction === 'save_and_new') redirect(`${ADMIN_PREFIX}/${entity}/create?${flash}`);
+  if (savedId && saveAction === 'save_and_edit') redirect(`${ADMIN_PREFIX}/${entity}/${savedId}/edit?${flash}`);
+  if (savedId && saveAction === 'save_and_preview') redirect(`${ADMIN_PREFIX}/${entity}/${savedId}/show?${flash}`);
   const custom = apiRedirect ?? getEntity(entity)?.saveRedirect?.(values);
   if (custom) {
     revalidatePath(`${ADMIN_PREFIX}/${custom.split('?')[0]}`);

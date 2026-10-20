@@ -38,16 +38,16 @@ function expiry(v: Record<string, string>): string {
 const fees = (v: Record<string, string>) => v.business_payment_mode === 'Fees';
 
 function businessFields(edit: boolean): FieldDef[] {
-  const phone = (name: string, label: string): FieldDef => ({
-    name, label, size: 3, inputFilter: phoneFilter,
+  const phone = (name: string, label: string, required = false): FieldDef => ({
+    name, label, size: 3, inputFilter: phoneFilter, required,
     attributes: { pattern: '^[0-9\\-\\s]{8,15}$', maxLength: '15', autoComplete: 'off', title: 'Please enter valid mobile or landline number' },
   });
   const ro = (name: string, label: string, extra: Partial<FieldDef> = {}): FieldDef => ({ name, label, size: 6, attributes: { readOnly: 'readonly' }, ...extra });
   const upload = (name: string, label: string, size: number): FieldDef => ({ name, label, type: 'upload', size });
   return [
-    { name: 'mediator', label: 'The Mediator', type: 'select', size: 3 },
-    phone('owner_number_1', 'Owner Number'),
-    phone('business_contact_1', 'Business Contact 1'),
+    { name: 'mediator', label: 'The Mediator', type: 'select', size: 3, select2: true, required: true },
+    phone('owner_number_1', 'Owner Number', true),
+    phone('business_contact_1', 'Business Contact 1', true),
     phone('business_contact_2', 'Business Contact 2'),
     phone('business_contact_3', 'Business Contact 3'),
     phone('business_contact_4', 'Business Contact 4'),
@@ -58,29 +58,32 @@ function businessFields(edit: boolean): FieldDef[] {
       ? { name: 'aadhaar', label: 'AADHAR', size: 3, inputFilter: (v) => v.replace(/[^0-9]/g, ''), attributes: { pattern: '[0-9]{12}', maxLength: '12', minLength: '12' } }
       : { name: 'aadhaar', label: 'AADHAR', size: 3, attributes: { pattern: '[0-9]{12}', maxLength: '12', autoComplete: 'off' } },
     { name: 'gst', label: 'GST', size: 3, attributes: edit ? { pattern: '^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$', maxLength: '15' } : { autoComplete: 'off' } },
-    { name: 'from_date', label: 'Start Date', type: 'date', size: 3 },
-    { name: 'valid_till', label: 'Time Period', type: 'select', size: 3, options: Object.keys(PERIODS).map((k) => ({ value: k, label: k.replace('_', ' ').replace(/^\d+ \w/, (m) => m.replace(/ (\w)/, (_x, c) => ` ${c.toUpperCase()}`)) })) },
-    { name: 'exp_date', label: 'EXP DATE', type: 'date', size: 3, attributes: { readOnly: 'readonly' }, compute: { from: ['from_date', 'valid_till'], fn: expiry } },
+    { name: 'from_date', label: 'Start Date', type: 'date', size: 3, required: true },
+    { name: 'valid_till', label: 'Time Period', type: 'select', size: 3, required: true, options: Object.keys(PERIODS).map((k) => ({ value: k, label: k.replace('_', ' ').replace(/^\d+ \w/, (m) => m.replace(/ (\w)/, (_x, c) => ` ${c.toUpperCase()}`)) })) },
+    { name: 'exp_date', label: 'EXP DATE', type: 'date', size: 3, required: true, attributes: { readOnly: 'readonly' }, compute: { from: ['from_date', 'valid_till'], fn: expiry } },
     { name: 'business_email', label: 'Business Email ID', type: 'email', size: 3 },
     { name: 'owner_email', label: 'Owner Email ID', type: 'email', size: 3 },
-    { name: 'business_payment_mode', label: 'Payment Mode', type: 'select', size: 3, options: ['Fees', 'Advertisement', 'Free'].map((v) => ({ value: v, label: v })) },
+    { name: 'business_payment_mode', label: 'Payment Mode', type: 'radio', size: 3, required: true, options: ['Fees', 'Advertisement', 'Free'].map((v) => ({ value: v, label: v })) },
     { name: 'fees_type', label: 'Business Fess Type', type: 'select', size: 6, visibleWhen: fees, options: ['Cheque', 'Cash', 'Online via UPI', 'NEFT'].map((v) => ({ value: v, label: v })) },
     { name: 'business_fess', label: 'Fees Amount', type: 'number', size: 6, visibleWhen: fees },
-    { name: 'owner_name_en', label: 'Business Owner Name', size: 6, inputFilter: titleFilter },
+    // custom_html section headings
+    { name: '_heading_en', label: 'English Fields', type: 'heading', size: 6 },
+    { name: '_heading_hi', label: 'हिन्दी फ़ील्ड्स', type: 'heading', size: 6 },
+    { name: 'owner_name_en', label: 'Business Owner Name', size: 6, inputFilter: titleFilter, required: true },
     { name: 'owner_name_hi', label: 'व्यवसाय के मालिक का नाम', size: 6, autofill: translate('owner_name_en') },
-    { name: 'business_name_en', label: 'Business Name', size: 6, inputFilter: titleFilter },
+    { name: 'business_name_en', label: 'Business Name', size: 6, inputFilter: titleFilter, required: true },
     { name: 'business_name_hi', label: 'व्यवसाय का नाम', size: 6, autofill: translate('business_name_en') },
-    { name: 'address_line_1_en', label: 'Address line 1', size: 6, transform: 'titleCaseEnglish' },
+    { name: 'address_line_1_en', label: 'Address line 1', size: 6, transform: 'titleCaseEnglish', required: true },
     { name: 'address_line_1_hi', label: 'पता लाइन 1', size: 6, autofill: translate('address_line_1_en') },
-    { name: 'state_en', label: 'State', type: 'select', size: 6 },
+    { name: 'state_en', label: 'State', type: 'select', size: 6, select2: true, required: true },
     ro('state_hi', 'राज्य', { autofill: { from: 'state_en', endpoint: (v) => `/api/get-hindi-state/${enc(v)}`, pick: (j) => j?.data?.state_hi } }),
     {
-      name: 'dist_en', label: 'Dist', type: 'custom', size: 6,
+      name: 'dist_en', label: 'Dist', type: 'custom', size: 6, required: true,
       custom: cascade({ deps: ['state_en'], url: (v) => (v.state_en ? `business-state-cities/${enc(v.state_en)}` : null), pick: (j) => (j?.data ?? []).map((c: any) => ({ value: c.city, label: c.city })), first: { value: '', label: 'Select Any' } }),
     },
     ro('dist_hi', 'जिला'),
     {
-      name: 'pincode_id', label: 'Pincode', type: 'custom', size: 6,
+      name: 'pincode_id', label: 'Pincode', type: 'custom', size: 6, required: true,
       custom: cascade({
         deps: ['state_en', 'dist_en'], first: { value: '', label: 'Select Any' }, mirrorLabelTo: 'pincode_hi',
         url: (v) => (v.state_en && v.dist_en ? `business-state-city-pincode/${enc(v.state_en)}/${enc(v.dist_en)}` : null),
@@ -106,7 +109,7 @@ function businessFields(edit: boolean): FieldDef[] {
       }),
     },
     ro('area_hi', 'स्थानीय क्षेत्र'),
-    { name: 'business_category_id', label: 'Category', type: 'select', size: 6 },
+    { name: 'business_category_id', label: 'Category', type: 'select', size: 6, select2: true, required: true },
     ro('category_hi', 'श्रेणी', { autofill: { from: 'business_category_id', endpoint: (v) => `/api/get-category-hindi/${enc(v)}`, pick: (j) => j?.data ?? '' } }),
     {
       name: 'business_sub_category_id', label: 'Sub Category', type: 'custom', size: 6,
@@ -130,10 +133,21 @@ function businessFields(edit: boolean): FieldDef[] {
       name: 'social_media_url', label: 'Social Media Links', type: 'custom',
       custom: repeatable({
         subfields: [
-          { name: 'platform', label: 'Platform (facebook, twitter, linkedin, instagram, youtube, website, other)', size: 6 },
+          {
+            name: 'platform', label: 'Platform', type: 'select', size: 6,
+            options: [
+              { value: 'facebook', label: 'Facebook' },
+              { value: 'twitter', label: 'Twitter' },
+              { value: 'linkedin', label: 'LinkedIn' },
+              { value: 'instagram', label: 'Instagram' },
+              { value: 'youtube', label: 'YouTube' },
+              { value: 'website', label: 'Personal Website' },
+              { value: 'other', label: 'Other' },
+            ],
+          },
           { name: 'url', label: 'Profile URL', size: 6 },
         ],
-        newItemLabel: 'Add Social Media Links', initRows: 1, minRows: 0, maxRows: 10,
+        newItemLabel: 'New Item', initRows: 1, minRows: 0, maxRows: 10,
       }),
     },
     { name: 'slug', label: 'Slug', type: 'slug', size: 6, attributes: { readOnly: 'readonly' }, slug: { target: 'business_name_en', separator: '', trim: true, lower: true, strict: true, remove: /[*+~()!:@]/g } },
@@ -391,7 +405,7 @@ export const businessRequestManagment: EntityUi = {
     { name: 'business_image', label: 'Business Image', type: 'image' },
   ],
   filters: [{ name: 'business_id', label: 'Select Business', type: 'select' }],
-  lineButtons: (r) => (Number(r.is_business_approved) === 0 ? [{ label: '✔ Approve', href: `/pocketddadmin/business/${s(r.business_id)}/edit` }] : []),
+  lineButtons: (r) => (Number(r.is_business_approved) === 0 ? [{ label: 'Approve', icon: 'la-check-circle', variant: 'success' as const, href: `/pocketddadmin/business/${s(r.business_id)}/edit` }] : []),
   createFields: [],
 };
 

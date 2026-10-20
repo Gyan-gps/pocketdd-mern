@@ -27,6 +27,9 @@ export type FieldType =
   | 'image'
   | 'upload'
   | 'select_multiple'
+  | 'radio'
+  /** custom_html heading (e.g. "English Fields"): renders `label` centred, sends nothing. */
+  | 'heading'
   | 'custom';
 
 export interface Option {
@@ -51,6 +54,11 @@ export interface FieldDef {
   /** Field auto-filled by an API lookup when another field changes (Widget scripts). */
   autofill?: { from: string; endpoint: (value: string) => string; pick: (json: any) => string | undefined };
   hint?: string;
+  /** Red asterisk on the label. Backpack derives it from the FormRequest; set it here when the
+   *  rules live in custom store()/update() code the API can't introspect. */
+  required?: boolean;
+  /** select2 field: empty option reads "Select an entry" instead of "-". */
+  select2?: boolean;
   /** Options that depend on another field's value (Widget scripts, e.g. ads-position-handler.js). */
   dependsOn?: { field: string; options: Record<string, Option[]> };
   /** Shown only when true; hidden fields are cleared (JS toggles). */
@@ -75,6 +83,18 @@ export interface CustomFieldProps {
   formOptions?: Record<string, Option[]>;
 }
 
+/** A button from CRUD::addButtonFromModelFunction() — styled like the HTML the PHP model returns. */
+export interface ActionButton {
+  label: string;
+  href: string;
+  /** Line Awesome class, e.g. 'la-plus'. */
+  icon?: string;
+  /** CoreUI button style; default 'primary' for top buttons, 'link' for line buttons. */
+  variant?: 'primary' | 'success' | 'info' | 'outline-primary' | 'link';
+  /** Button stack position ('first' = before the Add button). Default 'last'. */
+  position?: 'first' | 'last';
+}
+
 export interface EntityUi {
   route: string;
   singular: string;
@@ -87,9 +107,9 @@ export interface EntityUi {
   /** List filters (Backpack addFilter); option lists come from the API list response `filters`. */
   filters?: Array<{ name: string; label: string; type: 'select' | 'date_range' }>;
   /** Top buttons (addButtonFromModelFunction top), given the list page query string. */
-  topButtons?: (query: Record<string, string | undefined>) => Array<{ label: string; href: string }>;
+  topButtons?: (query: Record<string, string | undefined>) => ActionButton[];
   /** Line buttons (addButtonFromModelFunction line). */
-  lineButtons?: (row: Record<string, unknown>) => Array<{ label: string; href: string }>;
+  lineButtons?: (row: Record<string, unknown>) => ActionButton[];
   /** Fetch field options from GET /<route>/form-options (CrudConfig.formOptions). */
   formOptions?: boolean;
   /** Create-form defaults read from the page query string (field 'default' => request()->get(...)). */

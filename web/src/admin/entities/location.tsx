@@ -26,7 +26,7 @@ export const location: EntityUi = {
     { name: 'status', label: 'Choose Status', type: 'select' },
   ],
   // the importPinCodeMaster button points at routes that are commented out (404 in Laravel too)
-  topButtons: () => [{ label: '☁ Import Pincode Master', href: '/pocketddadmin/importPinCodeMaster' }],
+  topButtons: () => [{ label: 'Import Pincode Master', href: '/pocketddadmin/importPinCodeMaster', variant: 'info', position: 'first' }],
   // store()/update(): redirect(backpack_url('business-user'))
   saveRedirect: () => 'business-user',
 };

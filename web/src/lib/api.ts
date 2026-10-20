@@ -45,3 +45,15 @@ export async function publicFetch<T>(path: string, init: RequestInit = {}): Prom
   const res = await fetch(`${API_URL}/api${path}`, { cache: 'no-store', ...init });
   return { status: res.status, body: (await res.json()) as T };
 }
+
+export interface EntityMeta {
+  route: string;
+  operations: string[];
+  required: { create: string[]; update: string[] };
+}
+
+/** Per-entity metadata from the API (operations + required form fields). */
+export async function getEntityMeta(route: string): Promise<EntityMeta | undefined> {
+  const all = await adminFetch<EntityMeta[]>('/entities');
+  return all.find((e) => e.route === route);
+}

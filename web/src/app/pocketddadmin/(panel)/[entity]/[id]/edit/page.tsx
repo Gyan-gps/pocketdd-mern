@@ -1,9 +1,12 @@
 import { notFound } from 'next/navigation';
 import { getEntity } from '@/admin/registry';
 import type { Option } from '@/admin/types';
+import { BackLink } from '@/components/admin/BackLink';
 import { CrudForm } from '@/components/admin/CrudForm';
-import { ApiError, adminFetch } from '@/lib/api';
+import { PageHeader, crudBreadcrumbs } from '@/components/admin/PageHeader';
+import { ApiError, adminFetch, getEntityMeta } from '@/lib/api';
 
+/** Backpack UpdateOperation (crud/edit.blade.php). */
 export default async function EditPage({ params }: { params: Promise<{ entity: string; id: string }> }) {
   const { entity, id } = await params;
   const ui = getEntity(entity);
@@ -12,16 +15,24 @@ export default async function EditPage({ params }: { params: Promise<{ entity: s
     if (e instanceof ApiError && e.status === 404) notFound();
     throw e;
   });
-  const formOptions = ui.formOptions
-    ? await adminFetch<Record<string, Option[]>>(`/${entity}/form-options?id=${encodeURIComponent(id)}`)
-    : undefined;
+  const [formOptions, meta] = await Promise.all([
+    ui.formOptions ? adminFetch<Record<string, Option[]>>(`/${entity}/form-options?id=${encodeURIComponent(id)}`) : undefined,
+    getEntityMeta(entity),
+  ]);
+
   return (
     <>
-      <div className="page-head">
-        <h1>{ui.plural}</h1>
-        <small>Edit {ui.singular}.</small>
-      </div>
-      <CrudForm entity={entity} id={id} initial={row} submitLabel="Save and back" formOptions={formOptions} />
+      <PageHeader title={ui.plural} subheading={`Edit ${ui.singular}.`} breadcrumbs={crudBreadcrumbs(entity, ui.plural, 'Edit')}>
+        {ui.operations.includes('list') && <BackLink entity={entity} plural={ui.plural} />}
+      </PageHeader>
+      <CrudForm
+        entity={entity}
+        id={id}
+        initial={row}
+        submitLabel="Save and back"
+        formOptions={formOptions}
+        required={meta?.required.update}
+      />
     </>
   );
 }

@@ -100,7 +100,9 @@ export function CodeFill({ p, deps, filter, which }: { p: CustomFieldProps; deps
 export interface SubField {
   name: string;
   label: string;
-  type?: 'text' | 'textarea' | 'number' | 'upload';
+  type?: 'text' | 'textarea' | 'number' | 'upload' | 'select';
+  /** type 'select' (select2_from_array): value → label. */
+  options?: Array<{ value: string; label: string }>;
   size?: number;
   inputFilter?: (v: string) => string;
   style?: React.CSSProperties;
@@ -181,7 +183,18 @@ export function Repeatable({ p, cfg }: { p: CustomFieldProps; cfg: RepeatableCfg
       <input type="hidden" name={name} value={rows.length ? JSON.stringify(textRows) : ''} />
       {uploads.length > 0 && <input type="hidden" name={`_order_${name}`} value={JSON.stringify(order)} />}
       {rows.map((r, i) => (
-        <div key={i} className="card" style={{ padding: 12, marginBottom: 8, display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: 8 }}>
+        <div key={i} className="relative mb-3 grid grid-cols-12 gap-x-6 rounded border border-line bg-[#f9fafb] px-4 pt-4">
+          {rows.length > cfg.minRows && (
+            // Backpack repeatable: round × delete button on the row's left edge
+            <button
+              type="button"
+              aria-label={`Remove row ${i + 1}`}
+              onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))}
+              className="absolute top-3 -left-2.5 flex size-5 cursor-pointer items-center justify-center rounded-full border border-line bg-white text-xs text-ink shadow-sm hover:bg-addon"
+            >
+              ×
+            </button>
+          )}
           {cfg.subfields.map((s) => {
             const id = `${name}-${i}-${s.name}`;
             const err = errFor(i, s.name);
@@ -201,6 +214,17 @@ export function Repeatable({ p, cfg }: { p: CustomFieldProps; cfg: RepeatableCfg
                   {!r[s.name] && <input id={id} type="file" name={`${name}[${i}][${s.name}]`} accept=".png,.jpg,.jpeg" />}
                 </>
               );
+            } else if (s.type === 'select') {
+              input = (
+                <select id={id} value={r[s.name] ?? ''} onChange={(e) => setCell(i, s.name, e.target.value)}>
+                  <option value="">Select an entry</option>
+                  {(s.options ?? []).map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              );
             } else if (s.type === 'textarea') {
               input = <textarea id={id} rows={3} style={s.style} value={r[s.name] ?? ''} onChange={(e) => setCell(i, s.name, s.inputFilter ? s.inputFilter(e.target.value) : e.target.value)} />;
             } else {
@@ -218,18 +242,15 @@ export function Repeatable({ p, cfg }: { p: CustomFieldProps; cfg: RepeatableCfg
               </div>
             );
           })}
-          {rows.length > cfg.minRows && (
-            <div style={{ gridColumn: 'span 12' }}>
-              <button type="button" className="btn" onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))}>
-                Delete
-              </button>
-            </div>
-          )}
         </div>
       ))}
       {rows.length < cfg.maxRows && (
-        <button type="button" className="btn" onClick={() => setRows((rs) => [...rs, Object.fromEntries(cfg.subfields.map((s) => [s.name, s.type === 'upload' ? null : ''])) as RowVals])}>
-          + {cfg.newItemLabel}
+        <button
+          type="button"
+          className="btn btn-outline-primary px-2! py-0.5! text-[0.875rem]!"
+          onClick={() => setRows((rs) => [...rs, Object.fromEntries(cfg.subfields.map((s) => [s.name, s.type === 'upload' ? null : ''])) as RowVals])}
+        >
+          <i className="la la-plus" aria-hidden /> {cfg.newItemLabel}
         </button>
       )}
     </div>

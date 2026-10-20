@@ -1,4 +1,4 @@
-import { Sidebar } from '@/components/admin/Sidebar';
+import { AdminShell } from '@/components/admin/AdminShell';
 import { adminFetch } from '@/lib/api';
 import { logout } from '../actions';
 
@@ -13,19 +13,8 @@ export default async function PanelLayout({ children }: { children: React.ReactN
     adminFetch<Array<{ route: string }>>('/entities'),
   ]);
   return (
-    <div className="shell">
-      <Sidebar available={entities.map((e) => e.route)} />
-      <div className="main">
-        <header className="topbar">
-          <span>{me.name ?? me.email}</span>
-          <form action={logout}>
-            <button className="btn" type="submit">
-              Logout
-            </button>
-          </form>
-        </header>
-        <div className="content">{children}</div>
-      </div>
-    </div>
+    <AdminShell userName={me.name ?? me.email ?? ''} available={entities.map((e) => e.route)} logoutAction={logout}>
+      {children}
+    </AdminShell>
   );
 }

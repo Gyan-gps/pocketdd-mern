@@ -24,6 +24,7 @@ export function getEntity(route: string): EntityUi | undefined {
 
 export interface MenuItem {
   title: string;
+  /** Line Awesome icon class (Backpack menu-item icon="la la-…"). */
   icon: string;
   route?: string;
   children?: MenuItem[];
@@ -31,36 +32,36 @@ export interface MenuItem {
 
 // resources/views/vendor/backpack/ui/inc/menu_items.blade.php
 export const MENU: MenuItem[] = [
-  { title: 'Dashboard', icon: '🏠', route: 'dashboard' },
-  { title: 'Category Management', icon: '☰', route: 'business-category' },
-  { title: 'Staff Management', icon: '👥', route: 'business-user' },
+  { title: 'Dashboard', icon: 'la-home', route: 'dashboard' },
+  { title: 'Category Management', icon: 'la-th-list', route: 'business-category' },
+  { title: 'Staff Management', icon: 'la-users-cog', route: 'business-user' },
   {
     title: 'Business',
-    icon: '💼',
+    icon: 'la-briefcase',
     children: [
-      { title: 'Businesses', icon: '🏪', route: 'business' },
-      { title: 'New Business Requests', icon: '📋', route: 'business-request-managment' },
+      { title: 'Businesses', icon: 'la-store', route: 'business' },
+      { title: 'New Business Requests', icon: 'la-clipboard-check', route: 'business-request-managment' },
     ],
   },
-  { title: 'Business owners', icon: '👔', route: 'business-owner' },
-  { title: 'Events Management', icon: '📅', route: 'event' },
-  { title: 'Advertisement Management', icon: '📢', route: 'advertisment' },
+  { title: 'Business owners', icon: 'la-user-tie', route: 'business-owner' },
+  { title: 'Events Management', icon: 'la-calendar-check', route: 'event' },
+  { title: 'Advertisement Management', icon: 'la-ad', route: 'advertisment' },
   {
     title: 'Administrators',
-    icon: '🛡',
+    icon: 'la-user-shield',
     children: [
-      { title: 'Helpline Numbers', icon: '📞', route: 'city-helpline-number' },
-      { title: 'Administrative Departments', icon: '🏛', route: 'department' },
-      { title: 'Officers Contact', icon: '👔', route: 'administrator' },
+      { title: 'Helpline Numbers', icon: 'la-phone-volume', route: 'city-helpline-number' },
+      { title: 'Administrative Departments', icon: 'la-landmark', route: 'department' },
+      { title: 'Officers Contact', icon: 'la-user-tie', route: 'administrator' },
     ],
   },
   {
     title: 'Address Management',
-    icon: '🗺',
+    icon: 'la-map',
     children: [
-      { title: 'Area & Local Area', icon: '📍', route: 'address' },
-      { title: 'Pin/State/District', icon: '📌', route: 'pincode' },
+      { title: 'Area & Local Area', icon: 'la-location-arrow', route: 'address' },
+      { title: 'Pin/State/District', icon: 'la-map-pin', route: 'pincode' },
     ],
   },
-  { title: 'About Us', icon: 'ℹ', route: 'about-us' },
+  { title: 'About Us', icon: 'la-info-circle', route: 'about-us' },
 ];

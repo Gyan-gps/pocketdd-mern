@@ -3,6 +3,8 @@ services:
   capture:
     image: mcr.microsoft.com/playwright:v1.49.1-jammy
     working_dir: /work
+    environment:
+      TARGETS: ${TARGETS:-laravel,next}
     volumes:
       - ./:/work
     entrypoint: ['sh', '-c', 'test -d node_modules/playwright || npm i --no-save playwright@1.49.1 >/dev/null; node capture.mjs "$$@"', '--']

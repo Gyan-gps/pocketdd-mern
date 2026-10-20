@@ -15,7 +15,7 @@ export function DeleteButton({ entity, id }: { entity: string; id: string }) {
         if (confirm('Are you sure you want to delete this item?')) start(() => deleteEntry(entity, id));
       }}
     >
-      Delete
+      <i className="la la-trash" aria-hidden /> Delete
     </button>
   );
 }

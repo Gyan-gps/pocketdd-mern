@@ -46,5 +46,6 @@ export const slider: EntityUi = {
     { name: 'client_name', label: 'Client Name', type: 'select' },
     { name: 'from_date', label: 'Advertisement Date Range', type: 'date_range' },
   ],
-  topButtons: () => [{ label: '⇅ Reorder sliders', href: '/pocketddadmin/slider/reorder' }],
+  // Backpack ReorderOperation button: btn-outline-primary + la-arrows, after Add
+  topButtons: () => [{ label: 'Reorder sliders', icon: 'la-arrows', variant: 'outline-primary', href: '/pocketddadmin/slider/reorder' }],
 };
