@@ -8,9 +8,9 @@
 //  - messages() uses the bare attribute key → every location_name failure shows the same text;
 //  - store()/update() redirect to business-user (UI: saveRedirect).
 import type { Row } from '../../db/pool.js';
-import { translatedAttr } from '../../helpers/phase5.js';
+import { translatedAttr } from '../../helpers/php-compat.js';
 import type { CrudConfig } from '../crud.js';
-import { all, eqFilter } from '../phase9b-support.js';
+import { all, eqFilter } from '../support/catalog-helpers.js';
 
 const APP_LOCALE = 'en';
 const MESSAGES = { location_name: 'City name should be unique and required.' };

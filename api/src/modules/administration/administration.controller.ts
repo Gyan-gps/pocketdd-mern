@@ -3,7 +3,7 @@ import type { Request } from 'express';
 import { errorMessage, PhpError, sendCatchLog, sendResponse } from '../../core/http/respond.js';
 import { validate } from '../../core/validation/validator.js';
 import { all, first } from '../../db/pool.js';
-import { phpTruthy, translatedAttr } from '../../helpers/phase5.js';
+import { phpTruthy, translatedAttr } from '../../helpers/php-compat.js';
 
 const TRIM_RE = /^[ \t\n\r\0\x0B]+|[ \t\n\r\0\x0B]+$/g;
 

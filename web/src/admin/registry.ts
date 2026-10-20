@@ -4,18 +4,18 @@ import { businessCategory } from './entities/business-category';
 import { businessSubCategory } from './entities/business-sub-category';
 import { location } from './entities/location';
 import { slider } from './entities/slider';
-import * as phase9c from './entities/phase9c';
-import { phase9dUi } from './entities/phase9d';
-import { phase9aUi } from './entities/phase9a';
+import * as staffEvents from './entities/staff-events';
+import { directoryUi } from './entities/directory';
+import { businessUi } from './entities/business';
 import type { EntityUi } from './types';
 
-// One entry per ported CrudController (Phase 9 adds the rest).
+// One entry per ported Backpack CrudController.
 const ENTITIES: Record<string, EntityUi> = {
-  ...Object.fromEntries(phase9dUi.map((e) => [e.route, e])),
-  ...Object.fromEntries(phase9aUi.map((e) => [e.route, e])),
+  ...Object.fromEntries(directoryUi.map((e) => [e.route, e])),
+  ...Object.fromEntries(businessUi.map((e) => [e.route, e])),
   [department.route]: department,
   ...Object.fromEntries([businessCategory, businessSubCategory, advertisment, slider, location].map((e) => [e.route, e])),
-  ...Object.fromEntries(Object.values(phase9c).map((e) => [e.route, e])),
+  ...Object.fromEntries(Object.values(staffEvents).map((e) => [e.route, e])),
 };
 
 export function getEntity(route: string): EntityUi | undefined {

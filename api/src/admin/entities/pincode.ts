@@ -1,12 +1,12 @@
 // Port of App\Http\Controllers\Admin\PinCodeCrudController ("pincode") (+ PinCodeRequest / PincodeUpdateRequest,
 // public/assets/js/pincode.js). Operations: List, Create, Update, Show. Model: PinCode ($guarded = ['id']).
-// The Excel import routes (import-pincode-data / insertPinCodeData) live in ../phase9d-routes.ts.
+// The Excel import routes (import-pincode-data / insertPinCodeData) live in ../dashboard.ts.
 import type { Request } from 'express';
 import { nowDb } from '../../core/time.js';
 import { all, exec, first, type Row } from '../../db/pool.js';
 import { normalizeAdminHindiField } from '../../helpers/adminHindi.js';
 import type { CrudConfig } from '../crud.js';
-import { onlyColumns, pluckSame, type FormOpts } from '../phase9d-support.js';
+import { onlyColumns, pluckSame, type FormOpts } from '../support/directory-helpers.js';
 
 const strOf = (v: unknown) => (v === null || v === undefined ? '' : String(v));
 

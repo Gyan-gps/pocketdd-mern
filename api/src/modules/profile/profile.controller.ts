@@ -6,7 +6,7 @@ import { nowDb } from '../../core/time.js';
 import { validate } from '../../core/validation/validator.js';
 import { exec, first } from '../../db/pool.js';
 import { bind, createImageFromBase64, isUploadedFile, phpStr } from '../../helpers/business.js';
-import { laravelUrl, phpTruthy } from '../../helpers/phase5.js';
+import { laravelUrl, phpTruthy } from '../../helpers/php-compat.js';
 import { serializeBusiness } from '../../models/business.js';
 import { serializeUser } from '../../models/user.js';
 

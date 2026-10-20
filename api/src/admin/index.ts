@@ -7,20 +7,20 @@ import { businessSubCategory } from './entities/business-sub-category.js';
 import { advertisment } from './entities/advertisment.js';
 import { slider } from './entities/slider.js';
 import { location } from './entities/location.js';
-import { phase9bRoutes } from './phase9b-routes.js';
-import { phase9cEntities, phase9cRoutes } from './phase9c.js';
-import { phase9aEntities, phase9aRoutes } from './phase9a.js';
-import { phase9dEntities, phase9dRoutes } from './phase9d.js';
+import { catalogImportRoutes } from './routes/catalog-imports.js';
+import { staffEventEntities, staffEventRoutes } from './modules/staff-events.js';
+import { businessEntities, businessRoutes } from './modules/business.js';
+import { directoryEntities, dashboardRoutes } from './modules/directory.js';
 
-// One entry per Route::crud(...) in pocketdd-admin/routes/backpack/custom.php (ported in Phase 9).
-const ENTITIES: CrudConfig[] = [department, businessCategory, businessSubCategory, advertisment, slider, location, ...phase9cEntities, ...phase9aEntities, ...phase9dEntities];
+// One entry per Route::crud(...) in pocketdd-admin/routes/backpack/custom.php (see admin/modules/*).
+const ENTITIES: CrudConfig[] = [department, businessCategory, businessSubCategory, advertisment, slider, location, ...staffEventEntities, ...businessEntities, ...directoryEntities];
 
 export const adminRoutes = Router();
 adminRoutes.use('/auth', adminAuthRoutes);
-adminRoutes.use(phase9bRoutes); // imports + slider/reorder (before the CRUD '/:id' routes)
-adminRoutes.use(phase9cRoutes); // admin/business-user/fetch/pincode
-adminRoutes.use(phase9aRoutes); // admin/business-detail/fetch/pincode
-adminRoutes.use(phase9dRoutes); // charts/*, dashboard, import-pincode-data, insertPinCodeData
+adminRoutes.use(catalogImportRoutes); // imports + slider/reorder (before the CRUD '/:id' routes)
+adminRoutes.use(staffEventRoutes); // admin/business-user/fetch/pincode
+adminRoutes.use(businessRoutes); // admin/business-detail/fetch/pincode
+adminRoutes.use(dashboardRoutes); // charts/*, dashboard, import-pincode-data, insertPinCodeData
 for (const cfg of ENTITIES) adminRoutes.use(`/${cfg.route}`, crudRouter(cfg));
 
 /** Entity list for the panel's navigation (routes that exist on the API). */

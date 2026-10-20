@@ -1,6 +1,6 @@
 // UI of App\Http\Controllers\Admin\AdvertismentCrudController (+ public/assets/js/ads-position-handler.js).
 import type { EntityUi, FieldDef, Option } from '../types';
-import { dateCell, rupees, statusClosure } from './phase9b-shared';
+import { dateCell, rupees, statusClosure } from './shared-columns';
 
 const opts = (...values: string[]): Option[] => values.map((v) => ({ value: v, label: v }));
 

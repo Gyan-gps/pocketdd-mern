@@ -1,6 +1,6 @@
 // UI of App\Http\Controllers\Admin\BusinessCategoryCrudController.
 import type { EntityUi, FieldDef } from '../types';
-import { hindiAutofill, hindiStyle, slugField, statusClosure } from './phase9b-shared';
+import { hindiAutofill, hindiStyle, slugField, statusClosure } from './shared-columns';
 
 const fields = (statusLabel: string): FieldDef[] => [
   {

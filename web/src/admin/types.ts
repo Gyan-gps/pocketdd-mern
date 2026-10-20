@@ -59,7 +59,7 @@ export interface FieldDef {
   compute?: { from: string[]; fn: (values: Record<string, string>) => string };
   /** Keystroke filter (port of an oninput handler), applied before the value is stored. */
   inputFilter?: (value: string) => string;
-  /** type 'custom': renders its own inputs (repeatables, remote selects…); see components/admin/Phase9dFields. */
+  /** type 'custom': renders its own inputs (repeatables, remote selects…); see components/admin/DirectoryFields. */
   custom?: (props: CustomFieldProps) => React.ReactNode;
 }
 

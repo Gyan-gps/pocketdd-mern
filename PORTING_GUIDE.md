@@ -29,9 +29,9 @@ HTTP status. Port bugs and quirks as-is (comment them `// Laravel quirk:`) — n
 ## Where your files go (avoid collisions with parallel work)
 - Module: `api/src/modules/<name>/<name>.controller.ts` + `<name>.routes.ts` (default-export a Router). Mount it with ONE added import + ONE `routes.use(...)` line in `api/src/routes.ts` (Edit tool; re-read and retry if the edit fails because someone else edited it).
 - Shared model serializers/helpers: `api/src/models/<model>.ts`, `api/src/helpers/<name>.ts`. Before creating, check if it exists; if so, only ADD exports — never rewrite others' code.
-- Dev schema (columns/tables the PHP uses but the local DB lacks): `api/scripts/schema/phase<N>.ts` (see phase2.ts; `tables`, `columns`, `nullable`). Apply: `docker compose exec -T api npx tsx scripts/dev-schema-patch.ts`.
+- Dev schema (columns/tables the PHP uses but the local DB lacks): `api/scripts/schema/phase<N>.ts` (see 01-auth-locations.ts; `tables`, `columns`, `nullable`). Apply: `docker compose exec -T api npx tsx scripts/dev-schema-patch.ts`.
 - Fixtures: `api/scripts/seed/phase<N>.ts` — **use only ids in your phase range** (phase N → N00–N99, e.g. phase 3 → 300–399) so parallel runs don't collide. Phase 2 rows (ids 1–6) may be read, not changed. Apply: `docker compose exec -T api npx tsx scripts/dev-seed.ts`.
-- Parity cases: `api/test/parity/cases/phase<N>-<name>.ts` (see phase2-auth.ts). Run: `docker compose exec -T api npx tsx test/parity/run.ts phase<N>` (from `pocketdd-node/`).
+- Parity cases: `api/test/parity/cases/phase<N>-<name>.ts` (see auth-locations.ts). Run: `docker compose exec -T api npx tsx test/parity/run.ts phase<N>` (from `pocketdd-node/`).
 
 ## Verification loop (required)
 1. `docker compose exec -T api npx tsc --noEmit` — fix errors in your files (ignore other phases' in-progress files).
@@ -44,7 +44,7 @@ HTTP status. Port bugs and quirks as-is (comment them `// Laravel quirk:`) — n
 Reference: `Admin\DepartmentCrudController` →
 - API: `api/src/admin/entities/department.ts` (`CrudConfig`, engine in `api/src/admin/crud.ts`), registered in `api/src/admin/index.ts` `ENTITIES`.
 - UI: `web/src/admin/entities/department.ts` (`EntityUi`, types in `web/src/admin/types.ts`), registered in `web/src/admin/registry.ts`.
-- Tests: `api/test/admin.test.ts` pattern (login with the seeded test admin from `scripts/seed/phase8.ts`).
+- Tests: `api/test/admin.test.ts` pattern (login with the seeded test admin from `scripts/seed/07-admin-auth.ts`).
 Mapping rules:
 - `use ...Operation` traits → `operations`. Only expose what the PHP exposes.
 - `setupListOperation` columns/clauses → `list.orderBy`, `list.where`, `searchable` (Backpack searches every text column whose `searchLogic` isn't false; relationship columns search the related name), UI `columns` (type/label/limit/wrapper style, relationship → `render` using data the API's `serialize` adds).

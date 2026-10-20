@@ -3,10 +3,10 @@
 // `$translatable = ['name']`, `$guarded = ['id']` (officer_mobile_number is a form field but not a column:
 // Eloquent drops it silently).
 import type { Row } from '../../db/pool.js';
-import { translatedAttr } from '../../helpers/phase5.js';
+import { translatedAttr } from '../../helpers/php-compat.js';
 import { phpJsonDecodeAssoc } from '../../helpers/business.js';
 import type { CrudConfig } from '../crud.js';
-import { keepIfJsonEquivalent, onlyColumns } from '../phase9d-support.js';
+import { keepIfJsonEquivalent, onlyColumns } from '../support/directory-helpers.js';
 
 const FIELDS = ['name', 'officer_mobile_number', 'status'];
 const RULES = { name: 'required|min:5|max:255' };

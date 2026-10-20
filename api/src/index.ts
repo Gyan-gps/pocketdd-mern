@@ -5,6 +5,6 @@ import { startQueueWorker } from './jobs/dispatch.js';
 
 app.listen(env.port, () => console.log(`API listening on :${env.port}`));
 
-// Phase 7: database queue worker (`queue:work`) and scheduler (`schedule:run`), both in-process.
+// Database queue worker (`queue:work`) and scheduler (`schedule:run`), both in-process.
 if ((process.env.QUEUE_WORKER ?? 'true') === 'true') startQueueWorker();
 if ((process.env.SCHEDULER ?? 'true') === 'true') startScheduler();

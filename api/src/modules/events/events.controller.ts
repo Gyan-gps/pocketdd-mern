@@ -11,7 +11,7 @@ import {
   laravelUrl,
   phpEmpty,
   phpTruthy,
-} from '../../helpers/phase5.js';
+} from '../../helpers/php-compat.js';
 import { innerAdsWithBusiness } from '../../models/advertisment.js';
 
 const phpTrim = (v: unknown) => (v === null || v === undefined ? '' : String(v)).replace(/^[ \t\n\r\0\x0B]+|[ \t\n\r\0\x0B]+$/g, '');

@@ -1,7 +1,7 @@
 // Port of App\Http\Controllers\Admin\BusinessCategoryCrudController (+ BusinessCategoryRequest /
 // BusinessCategoryUpdateRequest). Operations: List, Create, Update, Show (Delete/Reorder commented out).
 // Model BusinessCategory: $guarded ['id'], Sluggable source `slug_or_name` (no accessor → blank slug stays NULL).
-// The import routes (import-category-data / insertCategoryData) live in ../phase9b-routes.ts.
+// The import routes (import-category-data / insertCategoryData) live in ../catalog-imports.ts.
 import type { Row } from '../../db/pool.js';
 import type { CrudConfig } from '../crud.js';
 import { applySingleUpload } from '../uploads.js';
@@ -15,7 +15,7 @@ import {
   sortingFilter,
   STATUS_FILTER,
   withKeyDesc,
-} from '../phase9b-support.js';
+} from '../support/catalog-helpers.js';
 
 const MESSAGES = {
   'name.required': 'Business Category Name is required.',

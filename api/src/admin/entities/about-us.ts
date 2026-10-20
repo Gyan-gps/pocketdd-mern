@@ -15,7 +15,7 @@ import { isUploadedFile, phpJsonDecodeAssoc, type UploadedFileLike } from '../..
 import { phpJsonEncode } from '../../helpers/phpJson.js';
 import type { CrudConfig } from '../crud.js';
 import { backpackFileName, deletePublicFile } from '../uploads.js';
-import { onlyColumns, phpEmpty, stateOptions, type FormOpts } from '../phase9d-support.js';
+import { onlyColumns, phpEmpty, stateOptions, type FormOpts } from '../support/directory-helpers.js';
 
 const UPLOAD_PATH = 'uploads/tourist_place_images/';
 const FIELDS = ['state', 'city', 'about_mediator', 'about_mediator_hi', 'know_your_city', 'know_your_city_hi', 'tourist_places'];

@@ -1,6 +1,6 @@
 // UI of App\Http\Controllers\Admin\BusinessSubCategoryCrudController (List, Create, Update — no Show).
 import type { EntityUi, FieldDef } from '../types';
-import { hindiAutofill, hindiStyle, slugField, statusClosure } from './phase9b-shared';
+import { hindiAutofill, hindiStyle, slugField, statusClosure } from './shared-columns';
 
 const common: FieldDef[] = [
   {

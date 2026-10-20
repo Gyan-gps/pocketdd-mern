@@ -1,5 +1,5 @@
 // Port of App\Http\Controllers\Admin\SliderCrudController (+ SliderRequest / SliderUpdateRequest).
-// Operations: List, Create, Update, Show, Reorder (reorder routes in ../phase9b-routes.ts).
+// Operations: List, Create, Update, Show, Reorder (reorder routes in ../catalog-imports.ts).
 // Model Slider: $guarded ['id'], no casts (dates written as sent; MySQL pads `Y-m-d` to midnight).
 // Quirks kept:
 //  - SliderUpdateRequest requires `slider_img` too, and Backpack's upload input is disabled while a file
@@ -10,7 +10,7 @@
 import type { Row } from '../../db/pool.js';
 import type { CrudConfig } from '../crud.js';
 import { applySingleUpload } from '../uploads.js';
-import { all, dateRange, dateSearch, eqFilter, setTreeColumns, ymd } from '../phase9b-support.js';
+import { all, dateRange, dateSearch, eqFilter, setTreeColumns, ymd } from '../support/catalog-helpers.js';
 
 const TABLE = 'sliders';
 const UPLOAD_DIR = 'uploads/user_images';

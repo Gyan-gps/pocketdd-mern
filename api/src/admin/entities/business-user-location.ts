@@ -3,7 +3,7 @@
 // Update, Fetch (no fetch* methods), Show. select2 columns are not searchable in Backpack → no search.
 // Laravel quirk: store() redirects to the Staff list (business-user), update() back to this list.
 import { all, first, type Row } from '../../db/pool.js';
-import { translatedAttr } from '../../helpers/phase5.js';
+import { translatedAttr } from '../../helpers/php-compat.js';
 import type { CrudConfig } from '../crud.js';
 
 const FIELDS = ['business_user_id', 'location_id'];

@@ -1,9 +1,9 @@
-// Eloquent JSON for App\Models\Business, BusinessImage, BusinessCategory/SubCategory, Location (phase 4).
+// Eloquent JSON for App\Models\Business, BusinessImage, BusinessCategory/SubCategory, Location.
 import { serializeDates } from '../core/time.js';
 import { appUrl } from '../core/url.js';
 import type { Row } from '../db/pool.js';
 import { phpJsonDecodeAssoc } from '../helpers/business.js';
-import { phpTruthy } from '../helpers/phase5.js';
+import { phpTruthy } from '../helpers/php-compat.js';
 
 /** `env('APP_URL') . '/' . $path` when the attribute is truthy (business_icon, photo_url, category_icon…). */
 export const appUrlOrNull = (v: unknown): string | null => (phpTruthy(v) ? appUrl(String(v)) : null);

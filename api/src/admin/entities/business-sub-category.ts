@@ -19,7 +19,7 @@ import {
   slugOrNull,
   sortingFilter,
   withKeyDesc,
-} from '../phase9b-support.js';
+} from '../support/catalog-helpers.js';
 
 const MESSAGES_CREATE = {
   'parent_id.required': 'Please select a category.',

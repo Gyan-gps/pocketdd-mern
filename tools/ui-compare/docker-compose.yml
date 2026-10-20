@@ -1,0 +1,13 @@
+# Playwright runner on the same Docker network as Laravel (laravel.test) and the Next admin (web).
+services:
+  capture:
+    image: mcr.microsoft.com/playwright:v1.49.1-jammy
+    working_dir: /work
+    volumes:
+      - ./:/work
+    entrypoint: ['sh', '-c', 'test -d node_modules/playwright || npm i --no-save playwright@1.49.1 >/dev/null; node capture.mjs "$$@"', '--']
+    networks: [sail]
+networks:
+  sail:
+    external: true
+    name: pocketdd-admin_sail

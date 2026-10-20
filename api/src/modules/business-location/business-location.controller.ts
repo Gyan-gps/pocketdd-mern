@@ -4,7 +4,7 @@ import { errorMessage, PhpError, sendCatchLog, sendResponse } from '../../core/h
 import { nowDb } from '../../core/time.js';
 import { all, first, exec } from '../../db/pool.js';
 import { eloquentSave, whereEq, type Db } from '../../helpers/business.js';
-import { phpTruthy } from '../../helpers/phase5.js';
+import { phpTruthy } from '../../helpers/php-compat.js';
 import { serializeLocation } from '../../models/business.js';
 
 const db: Db = { all, first, exec };

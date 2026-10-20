@@ -1,3 +1,5 @@
 .env
 node_modules
 .next
+tools/ui-compare/node_modules
+tools/ui-compare/shots

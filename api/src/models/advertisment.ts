@@ -1,6 +1,6 @@
 import type { Request } from 'express';
 import { all, first } from '../db/pool.js';
-import { laravelUrl } from '../helpers/phase5.js';
+import { laravelUrl } from '../helpers/php-compat.js';
 
 /**
  * Advertisment::where('ads_position','inner')->where('ads_location',$loc)->where('status',1)

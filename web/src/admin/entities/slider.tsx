@@ -1,6 +1,6 @@
 // UI of App\Http\Controllers\Admin\SliderCrudController (List, Create, Update, Show, Reorder).
 import type { EntityUi, FieldDef } from '../types';
-import { dateCell, rupees } from './phase9b-shared';
+import { dateCell, rupees } from './shared-columns';
 
 const PAGE_LOCATIONS = [
   { value: 'business_page', label: 'Business' },

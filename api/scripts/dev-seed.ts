@@ -1,5 +1,5 @@
 /**
- * DEV ONLY. Fixtures for parity tests (the local DB is empty). One file per phase in scripts/seed/.
+ * DEV ONLY. Fixtures for parity tests (the local DB is empty). One file per feature area in scripts/seed/ (NN- prefix = run order).
  * Rows are upserted by id; columns that do not exist locally are skipped with a warning.
  *
  *   docker compose exec api npx tsx scripts/dev-seed.ts
@@ -9,7 +9,7 @@ import { all, exec, pool } from '../src/db/pool.js';
 import type { Seed } from './seed/types.js';
 
 const files = readdirSync(new URL('./seed/', import.meta.url))
-  .filter((f) => /^phase\d+.*\.ts$/.test(f))
+  .filter((f) => /^\d{2}-.*\.ts$/.test(f))
   .sort();
 
 await exec('SET FOREIGN_KEY_CHECKS = 0');

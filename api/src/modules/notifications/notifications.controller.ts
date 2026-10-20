@@ -6,7 +6,7 @@ import { errorMessage, sendCatchLog, sendResponse } from '../../core/http/respon
 import { nowDb, toModelJson } from '../../core/time.js';
 import { validate } from '../../core/validation/validator.js';
 import { all, exec, first, type Row } from '../../db/pool.js';
-import { bearerToken, laravelUrl, phpEmpty, phpTruthy } from '../../helpers/phase5.js';
+import { bearerToken, laravelUrl, phpEmpty, phpTruthy } from '../../helpers/php-compat.js';
 import { innerAdsWithBusiness } from '../../models/advertisment.js';
 
 const sha256 = (v: string) => crypto.createHash('sha256').update(v).digest('hex');

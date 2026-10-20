@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { saveSliderOrder } from '@/app/pocketddadmin/(panel)/phase9b-actions';
+import { saveSliderOrder } from '@/app/pocketddadmin/(panel)/import-actions';
 
 type Row = Record<string, unknown>;
 

@@ -22,7 +22,7 @@ import {
   todayIst,
   withKeyDesc,
   ymd,
-} from '../phase9b-support.js';
+} from '../support/catalog-helpers.js';
 
 const TABLE = 'advertisments';
 const UPLOAD_DIR = 'uploads/adv_images';

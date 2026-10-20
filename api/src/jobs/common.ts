@@ -1,4 +1,4 @@
-// Shared bits for the queued jobs (Phase 7).
+// Shared bits for the queued jobs.
 import { env } from '../config/env.js';
 import { exec, first } from '../db/pool.js';
 import { phpJsonEncode } from '../services/firebase.js';

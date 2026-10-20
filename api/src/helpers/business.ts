@@ -1,4 +1,4 @@
-// Laravel/PHP behaviour helpers used by the phase 4 modules (business, business-location, profile).
+// Laravel/PHP behaviour helpers used by the business, business-location and profile modules (business, business-location, profile).
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import path from 'node:path';

@@ -1,8 +1,8 @@
-// Admin API (Phase 8) against the running server + seeded fixtures (scripts/seed/phase8.ts).
+// Admin API (auth + Department CRUD) against the running server + seeded fixtures (scripts/seed/07-admin-auth.ts).
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
 import { exec, first, pool } from '../src/db/pool.js';
-import { ADMIN_TEST_EMAIL, ADMIN_TEST_PASSWORD } from '../scripts/seed/phase8.js';
+import { ADMIN_TEST_EMAIL, ADMIN_TEST_PASSWORD } from '../scripts/seed/07-admin-auth.js';
 
 const BASE = process.env.NODE_URL ?? 'http://localhost:4000';
 let token = '';

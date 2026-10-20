@@ -19,7 +19,7 @@ import {
   whereEq,
   type Db,
 } from '../../helpers/business.js';
-import { phpTruthy } from '../../helpers/phase5.js';
+import { phpTruthy } from '../../helpers/php-compat.js';
 import { serializeBusiness, serializeBusinessImage, serializeCategory } from '../../models/business.js';
 
 type Input = Record<string, unknown>;

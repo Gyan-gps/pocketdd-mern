@@ -1,7 +1,7 @@
 /**
  * DEV ONLY. The local DB is older than production: tables/columns the Laravel code uses were added on
  * the server without migrations. This script adds what is missing (reconstructed from the PHP code,
- * one file per phase in scripts/schema/), so both apps can run locally. It only CREATEs tables /
+ * one file per feature area in scripts/schema/, NN- prefix = run order), so both apps can run locally. It only CREATEs tables /
  * ADDs nullable columns / relaxes NOT NULL — never drops or narrows anything. Replace with a production `mysqldump --no-data`
  * when available.
  *
@@ -19,7 +19,7 @@ async function existingColumns(table: string): Promise<Set<string> | null> {
   return rows.length ? new Set(rows.map((r) => String(r.c))) : null;
 }
 
-const files = readdirSync(new URL('./schema/', import.meta.url)).filter((f) => /^phase\d+.*\.ts$/.test(f)).sort();
+const files = readdirSync(new URL('./schema/', import.meta.url)).filter((f) => /^\d{2}-.*\.ts$/.test(f)).sort();
 const changes: string[] = [];
 
 for (const file of files) {

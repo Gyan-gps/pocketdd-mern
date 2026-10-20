@@ -8,7 +8,7 @@ until the new stack has run cleanly in production.
    - Diff `schema.sql` against the dev patch files (`api/scripts/schema/phase*.ts`).
    - Every column the port uses must exist in production. Any type that differs from what we inferred (TINYINT vs VARCHAR, JSON vs LONGTEXT) must be checked against the code that reads it.
    - **Never run `dev-schema-patch.ts` or `dev-seed.ts` against production.**
-2. **Create the one new table** the Node app needs: `node_jobs`, the Node queue (definition in `api/scripts/schema/phase7.ts`). It is the only schema change for production.
+2. **Create the one new table** the Node app needs: `node_jobs`, the Node queue (definition in `api/scripts/schema/06-jobs.ts`). It is the only schema change for production.
 3. **Re-run the parity suite against a copy of production.**
    - Restore the production dump into staging.
    - Run Laravel and Node side by side on it.
