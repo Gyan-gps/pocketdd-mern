@@ -32,7 +32,15 @@ export function AdminShell({
       /* storage unavailable */
     }
   }, []);
-  const toggle = () =>
+  // Below md the sidebar is an overlay drawer, closed by default and on navigation.
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const pathname = usePathname();
+  useEffect(() => setMobileOpen(false), [pathname]);
+  const toggle = () => {
+    if (window.matchMedia('(max-width: 767px)').matches) {
+      setMobileOpen((o) => !o);
+      return;
+    }
     setCollapsed((c) => {
       try {
         sessionStorage.setItem(COLLAPSED_KEY, c ? '0' : '1');
@@ -41,10 +49,12 @@ export function AdminShell({
       }
       return !c;
     });
+  };
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar collapsed={collapsed} available={new Set(['dashboard', ...available])} />
+      <Sidebar collapsed={collapsed} mobileOpen={mobileOpen} available={new Set(['dashboard', ...available])} />
+      {mobileOpen && <div className="fixed inset-0 z-30 bg-black/40 md:hidden" onClick={() => setMobileOpen(false)} aria-hidden />}
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex min-h-16 items-center justify-between px-3">
           <button type="button" onClick={toggle} aria-label="Toggle navigation" className="cursor-pointer p-1">
@@ -67,13 +77,12 @@ export function AdminShell({
   );
 }
 
-function Sidebar({ collapsed, available }: { collapsed: boolean; available: Set<string> }) {
+function Sidebar({ collapsed, mobileOpen, available }: { collapsed: boolean; mobileOpen: boolean; available: Set<string> }) {
   return (
     <nav
       aria-label="Main menu"
-      className={`shrink-0 bg-gradient-to-t from-sidebar-bottom to-sidebar-top text-white/75 transition-[width] duration-200 ${
-        collapsed ? 'w-0 overflow-hidden' : 'w-64 min-w-64'
-      }`}
+      className={`fixed inset-y-0 left-0 z-40 h-screen w-64 shrink-0 overflow-x-hidden overflow-y-auto bg-gradient-to-t from-sidebar-bottom to-sidebar-top text-white/75 transition-[width,transform] duration-200 md:sticky md:top-0 md:z-auto md:translate-x-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'
+        } ${collapsed ? 'md:w-0 md:min-w-0' : 'md:w-64 md:min-w-64'}`}
     >
       <Link href={`${PREFIX}/dashboard`} className="flex h-[89px] items-center justify-center bg-[#f5f5f5]" title="Pocket DD">
         {/* config/backpack/ui.php project_logo */}
