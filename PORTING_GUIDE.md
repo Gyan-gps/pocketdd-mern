@@ -9,12 +9,12 @@ messages, DB reads/writes (same tables, columns, values, IST timestamps), JSON k
 HTTP status. Port bugs and quirks as-is (comment them `// Laravel quirk:`) — never "fix" behaviour.
 
 ## Core helpers (api/src/core, api/src/db) — use them, don't reinvent
-- `action('Api\\XController@method', handler)` (core/http/route.ts) — wraps every route; a returned object is sent as JSON; uncaught errors → `api_failures` + 500. Use `{ logFailures: false }` for routes outside the `log.api.failures` group.
+- `action('Api\\XController@method', handler)` (core/http/action.ts) — wraps every route; a returned object is sent as JSON; uncaught errors → `api_failures` + 500. Use `{ logFailures: false }` for routes outside the `log.api.failures` group.
 - `sanctum` middleware (core/auth/sanctum.ts) for `auth:sanctum` routes; `req.user` is the users row.
 - `req.input` = Laravel `$request->all()` (trimmed, ''→null, query+body+files). Uploaded files appear as multer file objects (`originalname`, `mimetype`, `size`, `buffer`).
 - `validate(input, rules, messages)` (core/validation) → `.fails()`, `.first()`. Supports required, nullable, string, array, numeric, integer, boolean, digits, in, email, url, date, max, min, image, mimes, exists, unique, `x.*`. Unsupported rule → it throws; add the rule to the validator (with a unit test) if needed.
-- `sendResponse`, `sendCatchLog`, `errorMessage`, `PhpError` (core/http/respond.ts). PHP `catch (Exception $e)` does NOT catch `\Error`/TypeError — rethrow `PhpError` from catch blocks where the PHP would fatal.
-- `all/first/exec` (db/pool.ts) — raw SQL with `?` params; DB errors become Laravel-formatted `QueryException` messages. Dates come back as the stored strings.
+- `sendResponse`, `sendCatchLog`, `errorMessage`, `PhpError` (core/http/response.ts). PHP `catch (Exception $e)` does NOT catch `\Error`/TypeError — rethrow `PhpError` from catch blocks where the PHP would fatal.
+- `all/first/exec` (db/mysql.ts) — raw SQL with `?` params; DB errors become Laravel-formatted `QueryException` messages. Dates come back as the stored strings.
 - `nowDb()` for `now()`/`Carbon::now()` writes; `serializeDates(row, keys)` / `toModelJson()` for Eloquent date casts + timestamps in JSON (Eloquent → `2025-06-19T05:00:00.000000Z`; raw `DB::table()` rows → stored string).
 - `url(req, path)` = Laravel `url()`; `appUrl(path)` = `env('APP_URL').'/'.$path`. `env.publicPath` = Laravel `public_path()` (mounted, shared with Laravel).
 - `hashMake/hashCheck` (bcrypt `$2y$`), `createToken/deleteAllTokens` (Sanctum).
@@ -27,8 +27,8 @@ HTTP status. Port bugs and quirks as-is (comment them `// Laravel quirk:`) — n
 - Models with `HasTranslations` + `$translatable`: JSON column, `getTranslation('name', $lang)` falls back to the fallback locale.
 
 ## Where your files go (avoid collisions with parallel work)
-- Module: `api/src/modules/<name>/<name>.controller.ts` + `<name>.routes.ts` (default-export a Router). Mount it with ONE added import + ONE `routes.use(...)` line in `api/src/routes.ts` (Edit tool; re-read and retry if the edit fails because someone else edited it).
-- Shared model serializers/helpers: `api/src/models/<model>.ts`, `api/src/helpers/<name>.ts`. Before creating, check if it exists; if so, only ADD exports — never rewrite others' code.
+- Module: `api/src/modules/<name>/<name>.controller.ts` + `<name>.routes.ts` (default-export a Router). Mount it with ONE added import + ONE `routes.use(...)` line in `api/src/routes/index.ts` (Edit tool; re-read and retry if the edit fails because someone else edited it).
+- Shared model serializers/helpers: `api/src/models/<model>.ts`, `api/src/utils/<name>.ts`. Before creating, check if it exists; if so, only ADD exports — never rewrite others' code.
 - Dev schema (columns/tables the PHP uses but the local DB lacks): `api/scripts/schema/phase<N>.ts` (see 01-auth-locations.ts; `tables`, `columns`, `nullable`). Apply: `docker compose exec -T api npx tsx scripts/dev-schema-patch.ts`.
 - Fixtures: `api/scripts/seed/phase<N>.ts` — **use only ids in your phase range** (phase N → N00–N99, e.g. phase 3 → 300–399) so parallel runs don't collide. Phase 2 rows (ids 1–6) may be read, not changed. Apply: `docker compose exec -T api npx tsx scripts/dev-seed.ts`.
 - Parity cases: `api/test/parity/cases/phase<N>-<name>.ts` (see auth-locations.ts). Run: `docker compose exec -T api npx tsx test/parity/run.ts phase<N>` (from `pocketdd-node/`).
@@ -49,7 +49,7 @@ Mapping rules:
 - `use ...Operation` traits → `operations`. Only expose what the PHP exposes.
 - `setupListOperation` columns/clauses → `list.orderBy`, `list.where`, `searchable` (Backpack searches every text column whose `searchLogic` isn't false; relationship columns search the related name), UI `columns` (type/label/limit/wrapper style, relationship → `render` using data the API's `serialize` adds).
 - `setupCreate/UpdateOperation` fields → `fields.create/update` (exact names sent) + UI `createFields/updateFields`; FormRequest `rules()`/`messages()` → `validation` (closures when rules depend on the id, e.g. `unique:table,col,'.$id`).
-- Overridden `store()/update()` bodies, model events (`boot`, observers, Sluggable, mutators like `setXAttribute`), uploads, `SendXNotification::dispatch(...)` → `hooks`. Queue dispatches call `dispatchJob(name, args)` from `api/src/jobs/dispatch.ts` (Phase 7) — if it does not exist yet, create a stub there that only logs, keeping the exact args.
+- Overridden `store()/update()` bodies, model events (`boot`, observers, Sluggable, mutators like `setXAttribute`), uploads, `SendXNotification::dispatch(...)` → `hooks`. Queue dispatches call `dispatchJob(name, args)` from `api/src/jobs/queue.ts` (Phase 7) — if it does not exist yet, create a stub there that only logs, keeping the exact args.
 - Custom routes in `routes/backpack/custom.php` (imports, fetch endpoints, charts) → extra routes on the entity router or a module under `api/src/admin/`.
 - Extend `crud.ts`, `CrudForm.tsx`, `Cell.tsx`, `types.ts` only additively (new field/column types, new optional config keys) — other entities depend on them.
 

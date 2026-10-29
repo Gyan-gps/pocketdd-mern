@@ -1,0 +1,50 @@
+import { C, col } from './mongo.js';
+
+/** Indexes for the query patterns the API uses. Safe to run repeatedly. */
+export async function ensureIndexes() {
+  const spec: Array<[string, Record<string, 1 | -1 | '2dsphere'>, { unique?: boolean; sparse?: boolean }?]> = [
+    [C.users, { phone: 1 }],
+    [C.users, { email: 1 }],
+    [C.tokens, { token: 1 }, { unique: true }],
+    [C.tokens, { tokenable_type: 1, tokenable_id: 1 }],
+    [C.businesses, { slug: 1 }],
+    [C.businesses, { status: 1, to_show: 1 }],
+    [C.businesses, { business_category_id: 1 }],
+    [C.businesses, { business_sub_category_id: 1 }],
+    [C.businesses, { user_id: 1 }],
+    [C.businesses, { pincode_id: 1 }],
+    [C.businesses, { dist_en: 1 }],
+    [C.businesses, { 'locations.location_id': 1 }],
+    [C.businesses, { 'details.id': 1 }],
+    [C.businesses, { 'images.id': 1 }],
+    [C.businesses, { 'locations.id': 1 }],
+    [C.businesses, { 'owners.id': 1 }],
+    // Ready for "near me" search once businesses get a `geo: { type: 'Point', coordinates: [lng, lat] }`.
+    [C.businesses, { geo: '2dsphere' }, { sparse: true }],
+    [C.businessCategories, { slug: 1 }],
+    [C.businessSubCategories, { business_category_id: 1 }],
+    [C.businessSubCategories, { slug: 1 }],
+    [C.businessUsers, { user_id: 1 }],
+    [C.businessUsers, { 'locations.id': 1 }],
+    [C.businessRequests, { user_id: 1 }],
+    [C.pincodes, { pin_code: 1 }],
+    [C.pincodes, { state: 1, city: 1 }],
+    [C.advertisements, { status: 1, from_date: 1, to_date: 1 }],
+    [C.advertisements, { 'subcategories.id': 1 }],
+    [C.adUserViews, { device_id: 1, ad_id: 1 }],
+    [C.events, { status: 1, date: 1 }],
+    [C.events, { 'details.id': 1 }],
+    [C.events, { 'locations.id': 1 }],
+    [C.events, { 'locations.location_id': 1 }],
+    [C.administrators, { department_id: 1 }],
+    [C.cityHelplines, { pincode_id: 1 }],
+    [C.cityHelplines, { state: 1, city: 1 }],
+    [C.aboutUs, { state: 1, city: 1 }],
+    [C.userNotifications, { user_id: 1, created_at: -1 }],
+    [C.deviceIds, { device_id: 1 }],
+    [C.otpVerifications, { phone_number: 1 }],
+    [C.jobs, { queue: 1, reserved_at: 1, available_at: 1 }],
+    [C.languageLines, { group: 1, key: 1 }],
+  ];
+  for (const [name, keys, opts] of spec) await col(name).createIndex(keys, opts ?? {});
+}
