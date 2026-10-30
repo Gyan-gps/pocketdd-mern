@@ -30,15 +30,15 @@ export function startScheduler() {
   if (timer) return;
   const tick = async () => {
     const now = nowDb(); // IST "YYYY-MM-DD HH:mm:ss"
-    const hm = now.slice(11, 16);
+    const hourMinute = now.slice(11, 16);
     const key = now.slice(0, 16);
     for (const { command, at } of SCHEDULE) {
-      if (at !== hm || lastRun.get(command) === key) continue;
+      if (at !== hourMinute || lastRun.get(command) === key) continue;
       lastRun.set(command, key);
       try {
         await COMMANDS[command]!(consoleIO);
-      } catch (e) {
-        Log.error(`Scheduled command ${command} crashed`, { message: e instanceof Error ? e.message : String(e) });
+      } catch (error) {
+        Log.error(`Scheduled command ${command} crashed`, { message: error instanceof Error ? error.message : String(error) });
       }
     }
   };

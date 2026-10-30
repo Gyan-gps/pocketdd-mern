@@ -8,7 +8,7 @@ import path from 'node:path';
 import { after, before, describe, it } from 'node:test';
 import { env } from '../src/config/env.js';
 import { nowDb } from '../src/core/time.js';
-import { C, closeMongo, col } from '../src/db/mongo.js';
+import { C, closeMongo, col } from '../scripts/lib/raw-collections.js';
 import { all, exec, first, pool, type Row } from '../src/db/mysql.js';
 import { writeXlsx } from '../src/admin/xlsx.js';
 import { ADMIN_TEST_EMAIL, ADMIN_TEST_PASSWORD } from '../scripts/seed/07-admin-auth.js';

@@ -1,3 +1,15 @@
+// Admin panel API (mounted at /api/admin) — replaces Laravel Backpack (pocketdd-admin).
+//
+// Layout of src/admin:
+//  - index.ts    this router: auth, custom routes, one CRUD router per entity, and GET /entities (panel navigation).
+//  - auth.ts     admin login/logout/me and the `adminAuth` middleware (Sanctum token with Backpack's session timeout).
+//  - crud.ts     the generic CRUD engine: list/show/create/update/delete driven by a `CrudConfig`.
+//  - entities/   one `CrudConfig` per Backpack XCrudController (route, operations, list/search/filters, fields,
+//                validation schemas from src/validators/admin, hooks).
+//  - sections/   groups of entities + their extra routes (business, directory, staff/events) registered below.
+//  - routes/     non-CRUD endpoints (Excel imports, slider reorder, dashboard/charts).
+//  - support/    helpers shared by entities (MySQL column coercion, Backpack filters, list helpers).
+//  - uploads.ts / xlsx.ts  Backpack upload fields and the minimal .xlsx reader/writer used by the imports.
 import { Router } from 'express';
 import { adminAuthRoutes } from './auth.js';
 import { crudRouter, type CrudConfig } from './crud.js';
@@ -21,7 +33,7 @@ adminRoutes.use(catalogImportRoutes); // imports + slider/reorder (before the CR
 adminRoutes.use(staffEventRoutes); // admin/business-user/fetch/pincode
 adminRoutes.use(businessRoutes); // admin/business-detail/fetch/pincode
 adminRoutes.use(dashboardRoutes); // charts/*, dashboard, import-pincode-data, insertPinCodeData
-for (const cfg of ENTITIES) adminRoutes.use(`/${cfg.route}`, crudRouter(cfg));
+for (const entity of ENTITIES) adminRoutes.use(`/${entity.route}`, crudRouter(entity));
 
 /**
  * Fields whose FormRequest rules start with or contain `required` — Backpack marks these with a red
@@ -30,19 +42,19 @@ for (const cfg of ENTITIES) adminRoutes.use(`/${cfg.route}`, crudRouter(cfg));
 function requiredFields(rules: unknown): string[] {
   if (!rules || typeof rules !== 'object') return [];
   return Object.entries(rules as Record<string, string>)
-    .filter(([name, r]) => !name.includes('*') && typeof r === 'string' && r.split('|').includes('required'))
+    .filter(([name, rule]) => !name.includes('*') && typeof rule === 'string' && rule.split('|').includes('required'))
     .map(([name]) => name);
 }
 
 /** Entity list for the panel's navigation, plus the required fields per form. */
 adminRoutes.get('/entities', (_req, res) => {
   res.json(
-    ENTITIES.map((e) => ({
-      route: e.route,
-      operations: e.operations,
+    ENTITIES.map((entity) => ({
+      route: entity.route,
+      operations: entity.operations,
       required: {
-        create: requiredFields(e.validation?.create?.rules),
-        update: requiredFields(e.validation?.update?.rules),
+        create: requiredFields(entity.validation?.create?.rules),
+        update: requiredFields(entity.validation?.update?.rules),
       },
     })),
   );

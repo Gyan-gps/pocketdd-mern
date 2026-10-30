@@ -1,14 +1,15 @@
 // Port of App\Console\Commands\TranslateCitiesToHindi (`translate:cities-hindi`).
 // NOTE: not scheduled in Laravel (App\Console\Kernel is unused in Laravel 12 and routes/console.php has it commented out).
-import { C, col, type Filter } from '../db/mongo.js';
+import { type Filter } from '../db/mongo.js';
+import { CASE_INSENSITIVE } from '../db/eloquent.js';
+import { Pincode } from '../models/index.js';
 import { nowDb } from '../core/time.js';
 import { phpTrim } from '../utils/php/values.js';
 import { transliterateEnglishToHindi } from '../utils/hindi/transliterate.js';
 import { Log } from '../core/logging/log.js';
 import { type CommandIO, SUCCESS } from './command-io.js';
 
-const CI = { locale: 'en', strength: 2 } as const;
-const phpEmpty = (v: unknown) => v === null || v === undefined || v === '' || v === '0';
+const phpEmpty = (value: unknown) => value === null || value === undefined || value === '' || value === '0';
 
 /** General::quickTranslate() → the decoded JSON body's data.translated_text (or null on its error responses). */
 async function quickTranslate(text: string): Promise<string | null> {
@@ -28,19 +29,14 @@ export async function translateCitiesHindi(io: CommandIO, opts: { sleepMs?: numb
   // `opts.where` is a test-only extra filter (not in the PHP).
   for (let page = 0; ; page++) {
     // MySQL's collation groups and orders cities case-insensitively.
-    const found = await col(C.pincodes)
-      .aggregate(
-        [
-          { $match: { city: { $nin: [null, ''] }, ...(opts.where ?? {}) } },
-          { $group: { _id: '$city' } },
-          { $sort: { _id: 1 } },
-          { $skip: page * 100 },
-          { $limit: 100 },
-        ],
-        { collation: CI },
-      )
-      .toArray();
-    const cities = found.map((r) => ({ city: r._id as string }));
+    const found = await Pincode.aggregate<{ _id: string }>([
+      { $match: { city: { $nin: [null, ''] }, ...(opts.where ?? {}) } as Record<string, unknown> },
+      { $group: { _id: '$city' } },
+      { $sort: { _id: 1 } },
+      { $skip: page * 100 },
+      { $limit: 100 },
+    ]).option({ collation: CASE_INSENSITIVE });
+    const cities = found.map((group) => ({ city: group._id }));
     if (!cities.length) break;
 
     for (const city of cities) {
@@ -50,16 +46,16 @@ export async function translateCitiesHindi(io: CommandIO, opts: { sleepMs?: numb
           io.warn(`Translation failed for ${city.city}`);
           continue;
         }
-        await col(C.pincodes).updateMany(
+        await Pincode.updateMany(
           { city: city.city },
           { $set: { city_hi: translatedCity, updated_at: nowDb() } },
-          { collation: CI },
+          { collation: CASE_INSENSITIVE },
         );
         io.info(`${city.city} => ${translatedCity}`);
         totalTranslated++;
-        if (sleepMs) await new Promise((r) => setTimeout(r, sleepMs)); // usleep(300000)
-      } catch (e) {
-        io.error(`Error translating ${city.city}: ${e instanceof Error ? e.message : String(e)}`);
+        if (sleepMs) await new Promise((resolve) => setTimeout(resolve, sleepMs)); // usleep(300000)
+      } catch (error) {
+        io.error(`Error translating ${city.city}: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
     if (cities.length < 100) break;

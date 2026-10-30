@@ -14,61 +14,36 @@ import type { Row } from '../../db/mongo.js';
 import { isUploadedFile, type UploadedFileLike } from '../../utils/php/values.js';
 import type { CrudConfig } from '../crud.js';
 import { backpackFileName, deletePublicFile } from '../uploads.js';
+import { createAboutUsValidation, updateAboutUsValidation } from '../../validators/admin/about-us.validator.js';
 import { coerceRow, newRow, storeCoerced } from '../support/catalog-helpers.js';
 import { decodeAssoc, jsonColumnLike, onlyColumns, phpEmpty, rawJson, stateOptions, type FormOpts } from '../support/directory-helpers.js';
 
 const UPLOAD_PATH = 'uploads/tourist_place_images/';
 const FIELDS = ['state', 'city', 'about_mediator', 'about_mediator_hi', 'know_your_city', 'know_your_city_hi', 'tourist_places'];
 
-const BASE_RULES = {
-  city: 'required',
-  state: 'required',
-  about_mediator: 'required',
-  about_mediator_hi: 'required',
-  know_your_city: 'required',
-  know_your_city_hi: 'required',
-  tourist_places: 'required|array|min:1|max:10',
-  'tourist_places.*.place_name': 'required',
-  'tourist_places.*.place_name_hi': 'required',
-};
-
-const MESSAGES = {
-  'state.required': 'Please select a state.',
-  'city.required': 'Please select a city.',
-  'about_mediator.required': 'The "Know About the Mediator" field is required.',
-  'about_mediator_hi.required': '"मध्यस्थ के बारे में जानें" फ़ील्ड आवश्यक है',
-  'know_your_city.required': 'The "Know Your City" field is required.',
-  'know_your_city_hi.required': 'The "अपने शहर को जानें" field is required.',
-  'tourist_places.*.place_name.required': 'Each tourist place must have a name.',
-  'tourist_places.*.place_name_hi.required': 'प्रत्येक पर्यटन स्थल का हिंदी नाम होना चाहिए।',
-  'tourist_places.*.place_image.required': 'Each tourist place must have an image.',
-  'tourist_places.*.place_image.mimes': 'Images must be in jpg, jpeg, png, or svg format.',
-  'tourist_places.*.place_image.max': 'Each image must be less than 2MB.',
-  'tourist_places.*.place_description.required': 'Each tourist place must have a description.',
-  'tourist_places.*.place_description_hi.required': 'प्रत्येक पर्यटन स्थल का हिंदी विवरण होना चाहिए।',
-};
-
-const clean = (v: unknown): unknown => {
-  if (typeof v === 'string') {
-    const t = v.trim();
-    return t === '' ? null : t;
+const clean = (value: unknown): unknown => {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed === '' ? null : trimmed;
   }
-  if (Array.isArray(v)) return v.map(clean);
-  if (v && typeof v === 'object' && !isUploadedFile(v)) return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, clean(x)]));
-  return v;
+  if (Array.isArray(value)) return value.map(clean);
+  if (value && typeof value === 'object' && !isUploadedFile(value)) {
+    return Object.fromEntries(Object.entries(value).map(([key, nested]) => [key, clean(nested)]));
+  }
+  return value;
 };
 
 /** Rows as PHP sees `$request->input($name)`: a JSON string (Next form) is decoded; `{0:…}` objects become lists. */
-function rowsOf(v: unknown): Record<string, unknown>[] | null {
-  if (typeof v === 'string') {
+function rowsOf(value: unknown): Record<string, unknown>[] | null {
+  if (typeof value === 'string') {
     try {
-      v = clean(JSON.parse(v));
+      value = clean(JSON.parse(value));
     } catch {
       return null;
     }
   }
-  if (!v || typeof v !== 'object') return null;
-  return (Array.isArray(v) ? v : Object.values(v)) as Record<string, unknown>[];
+  if (!value || typeof value !== 'object') return null;
+  return (Array.isArray(value) ? value : Object.values(value)) as Record<string, unknown>[];
 }
 
 /**
@@ -79,16 +54,16 @@ function rowsOf(v: unknown): Record<string, unknown>[] | null {
 function prepareInput(req: Request): void {
   const input = req.input;
   const rows = rowsOf(input.tourist_places);
-  if (rows) input.tourist_places = rows.map((r) => (r && typeof r === 'object' ? { ...r } : r));
+  if (rows) input.tourist_places = rows.map((row) => (row && typeof row === 'object' ? { ...row } : row));
   for (const key of Object.keys(input)) {
-    const m = /^tourist_places\[(\d+)\]\[place_image\]$/.exec(key);
-    if (!m) continue;
+    const match = /^tourist_places\[(\d+)\]\[place_image\]$/.exec(key);
+    if (!match) continue;
     const file = input[key];
     delete input[key];
     if (!isUploadedFile(file) || file.size === 0 || file.originalname === '') continue;
     const list = (Array.isArray(input.tourist_places) ? input.tourist_places : []) as Record<string, unknown>[];
-    const i = Number(m[1]);
-    list[i] = { ...(list[i] ?? {}), place_image: file };
+    const index = Number(match[1]);
+    list[index] = { ...(list[index] ?? {}), place_image: file };
     input.tourist_places = list;
   }
   const order = rowsOf(input._order_tourist_places);
@@ -97,12 +72,14 @@ function prepareInput(req: Request): void {
 
 /** `$request->file('tourist_places')` merged into `$request->input('tourist_places')` (mergeValuesRecursive). */
 function requestRows(req: Request): Map<number, Record<string, unknown>> {
-  const out = new Map<number, Record<string, unknown>>();
+  const rowsByIndex = new Map<number, Record<string, unknown>>();
   const rows = Array.isArray(req.input.tourist_places) ? (req.input.tourist_places as unknown[]) : [];
-  rows.forEach((r, i) => {
-    if (r !== undefined) out.set(i, r && typeof r === 'object' ? { ...(r as Record<string, unknown>) } : ({} as Record<string, unknown>));
+  rows.forEach((row, index) => {
+    if (row !== undefined) {
+      rowsByIndex.set(index, row && typeof row === 'object' ? { ...(row as Record<string, unknown>) } : ({} as Record<string, unknown>));
+    }
   });
-  return out;
+  return rowsByIndex;
 }
 
 /** HandleRepeatableUploads::handleRepeatableFiles() for the single `place_image` uploader. */
@@ -112,9 +89,9 @@ function processTouristPlaces(req: Request, previousRaw: unknown): unknown {
   const ordered = new Map<number, unknown>();
   const order = req.input._order_tourist_places;
   if (Array.isArray(order)) {
-    order.forEach((o, row) => {
-      if (o === undefined) return;
-      ordered.set(row, o && typeof o === 'object' ? ((o as Record<string, unknown>).place_image ?? null) : null);
+    order.forEach((orderRow, row) => {
+      if (orderRow === undefined) return;
+      ordered.set(row, orderRow && typeof orderRow === 'object' ? ((orderRow as Record<string, unknown>).place_image ?? null) : null);
     });
   }
   // uploadRepeatableFiles(): store each valid uploaded file.
@@ -122,23 +99,23 @@ function processTouristPlaces(req: Request, previousRaw: unknown): unknown {
     const file = item.place_image;
     if (isUploadedFile(file) && file.size > 0) {
       const name = backpackFileName(file as UploadedFileLike);
-      const abs = path.posix.join(env.publicPath, UPLOAD_PATH);
-      fs.mkdirSync(abs, { recursive: true });
-      fs.writeFileSync(abs + name, (file as UploadedFileLike).buffer ?? Buffer.alloc(0));
+      const absoluteDirectory = path.posix.join(env.publicPath, UPLOAD_PATH);
+      fs.mkdirSync(absoluteDirectory, { recursive: true });
+      fs.writeFileSync(absoluteDirectory + name, (file as UploadedFileLike).buffer ?? Buffer.alloc(0));
       ordered.set(row, UPLOAD_PATH + name);
     }
   }
   // previous values: array_column($previousRows, 'place_image') (rows without the key are skipped → reindexed).
-  const prevDecoded = decodeAssoc(previousRaw);
-  const prevRows = prevDecoded && typeof prevDecoded === 'object' ? Object.values(prevDecoded as object) : [];
-  const previous = prevRows
-    .filter((r) => r && typeof r === 'object' && !Array.isArray(r) && 'place_image' in (r as object))
-    .map((r) => (r as Record<string, unknown>).place_image);
+  const previousDecoded = decodeAssoc(previousRaw);
+  const previousRows = previousDecoded && typeof previousDecoded === 'object' ? Object.values(previousDecoded as object) : [];
+  const previous = previousRows
+    .filter((previousRow) => previousRow && typeof previousRow === 'object' && !Array.isArray(previousRow) && 'place_image' in (previousRow as object))
+    .map((previousRow) => (previousRow as Record<string, unknown>).place_image);
   previous.forEach((file, row) => {
     if (!file) return;
     if (!ordered.has(row)) ordered.set(row, null);
     // in_array() (loose) against the new ordered values.
-    if (![...ordered.values()].some((v) => v !== null && v !== undefined && String(v) === String(file))) {
+    if (![...ordered.values()].some((value) => value !== null && value !== undefined && String(value) === String(file))) {
       deletePublicFile(String(file));
     }
   });
@@ -148,7 +125,7 @@ function processTouristPlaces(req: Request, previousRaw: unknown): unknown {
     item.place_image = ordered.get(row) ?? null;
     processed[row] = item;
   }
-  const list = processed.filter((x) => x !== undefined);
+  const list = processed.filter((item) => item !== undefined);
   if (list.length === 0) return null;
   // Model has no cast for tourist_places → json_encode() of the list; stored as a native value.
   return list.length === processed.length ? list : Object.fromEntries(values);
@@ -158,11 +135,18 @@ function processTouristPlaces(req: Request, previousRaw: unknown): unknown {
 export function touristPlacesText(raw: unknown): string {
   const places = decodeAssoc(raw);
   if (phpEmpty(places) || typeof places !== 'object') return '-';
-  const str = (v: unknown) => (v === null || v === undefined || v === false ? '' : v === true ? '1' : typeof v === 'object' ? 'Array' : String(v));
+  const phpString = (value: unknown) =>
+    value === null || value === undefined || value === false
+      ? ''
+      : value === true
+        ? '1'
+        : typeof value === 'object'
+          ? 'Array'
+          : String(value);
   return Object.values(places as object)
-    .map((p) => {
-      const o = p && typeof p === 'object' && !Array.isArray(p) ? (p as Record<string, unknown>) : {};
-      return `${str(o.place_name ?? '')} (${str(o.place_name_hi ?? '')})`;
+    .map((place) => {
+      const fields = place && typeof place === 'object' && !Array.isArray(place) ? (place as Record<string, unknown>) : {};
+      return `${phpString(fields.place_name ?? '')} (${phpString(fields.place_name_hi ?? '')})`;
     })
     .join(', ');
 }
@@ -184,26 +168,16 @@ export const aboutUs: CrudConfig = {
     create: {
       rules: (req) => {
         prepareInput(req);
-        return {
-          ...BASE_RULES,
-          'tourist_places.*.place_image': 'required|image|mimes:jpg,jpeg,png,svg|max:2048',
-          'tourist_places.*.place_description': 'required',
-          'tourist_places.*.place_description_hi': 'required',
-        };
+        return { ...createAboutUsValidation.rules };
       },
-      messages: MESSAGES,
+      messages: createAboutUsValidation.messages,
     },
     update: {
       rules: (req) => {
         prepareInput(req);
-        return {
-          ...BASE_RULES,
-          'tourist_places.*.place_image': 'image|mimes:jpg,jpeg,png,svg|max:2048',
-          'tourist_places.*.place_description': 'required',
-          'tourist_places.*.place_description_hi': 'required',
-        };
+        return { ...updateAboutUsValidation.rules };
       },
-      messages: MESSAGES,
+      messages: updateAboutUsValidation.messages,
     },
   },
   serialize: (row: Row) => ({
@@ -213,13 +187,18 @@ export const aboutUs: CrudConfig = {
     tourist_places_list: decodeAssoc(row.tourist_places),
     // Edit form value: retrieveRepeatableFiles() strips the upload path from each place_image.
     tourist_places_form: (() => {
-      const d = decodeAssoc(row.tourist_places);
-      if (!d || typeof d !== 'object') return [];
-      return Object.values(d as object).map((p) => {
-        const o = p && typeof p === 'object' && !Array.isArray(p) ? { ...(p as Record<string, unknown>) } : {};
-        const img = o.place_image;
-        o.place_image = img === undefined || img === null ? null : typeof img === 'string' && img.includes(UPLOAD_PATH) ? img.slice(img.indexOf(UPLOAD_PATH) + UPLOAD_PATH.length) : img;
-        return o;
+      const places = decodeAssoc(row.tourist_places);
+      if (!places || typeof places !== 'object') return [];
+      return Object.values(places as object).map((place) => {
+        const formRow = place && typeof place === 'object' && !Array.isArray(place) ? { ...(place as Record<string, unknown>) } : {};
+        const image = formRow.place_image;
+        formRow.place_image =
+          image === undefined || image === null
+            ? null
+            : typeof image === 'string' && image.includes(UPLOAD_PATH)
+              ? image.slice(image.indexOf(UPLOAD_PATH) + UPLOAD_PATH.length)
+              : image;
+        return formRow;
       });
     })(),
   }),
@@ -230,9 +209,10 @@ export const aboutUs: CrudConfig = {
     },
     beforeUpdate: async (data, existing, req) => {
       data.tourist_places = processTouristPlaces(req, existing.tourist_places);
-      const out = await onlyColumns('about_uses', data);
-      coerceRow('about_uses', out);
-      return out;
+      const row = await onlyColumns('about_uses', data);
+      coerceRow('about_uses', row);
+      return row;
+
     },
     afterUpdate: (id, data) => storeCoerced('about_uses', id, data),
   },

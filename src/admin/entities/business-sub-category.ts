@@ -7,64 +7,45 @@
 //  - the list `parent_id` relationship column is not searched (column type `relationship` has no search logic);
 //  - `parent_id` falls back to url()->previous()'s query string in Laravel (session state) — not reproducible
 //    over a stateless API; the UI always passes ?parent_id explicitly.
-import { C, col, intId, type Row } from '../../db/mongo.js';
+import { intId, type Row } from '../../db/mongo.js';
+import { BusinessCategory, BusinessSubCategory } from '../../models/index.js';
+import {
+  createBusinessSubCategoryValidation,
+  updateBusinessSubCategoryValidation,
+} from '../../validators/admin/business-sub-category.validator.js';
 import type { CrudConfig } from '../crud.js';
 import { applySingleUpload } from '../uploads.js';
 import { slugOrNull, sortingFilter, withKeyDesc } from '../support/catalog-helpers.js';
 import { cascadeSubCategories, coerceRow, eqFilter, newRow, onlyColumns, selectSorted, setTreeColumns, sqlId } from './business-columns.js';
-
-const MESSAGES_CREATE = {
-  'parent_id.required': 'Please select a category.',
-  'parent_id.exists': 'Selected category does not exist.',
-  'name.required': 'Sub-category name is required.',
-  'name.string': 'Sub-category name must be a valid string.',
-  'name.unique': 'This sub-category name already exists.',
-  'name_hi.required': 'Sub-category name (Hindi) is required.',
-  'img.required': 'Sub-category image is required.',
-  'img.image': 'Image must be a valid image format.',
-  'img.mimes': 'Allowed image types: png, jpg, jpeg, svg.',
-  'img.max': 'Image size must be less than 2MB.',
-};
-
-const MESSAGES_UPDATE = {
-  'parent_id_display.required': 'Please select a category.',
-  'parent_id_display.exists': 'Selected category does not exist.',
-  'name.required': 'Sub-category name is required.',
-  'name.string': 'Sub-category name must be a valid string.',
-  'name_hi.required': 'Sub-category name (Hindi) is required.',
-  'img.image': 'Image must be a valid image format.',
-  'img.mimes': 'Allowed image types: png, jpg, jpeg, svg.',
-  'img.max': 'Image size must be less than 2MB.',
-};
 
 const TABLE = 'business_sub_categories';
 const UPLOAD_DIR = 'uploads/sub-category_images';
 
 /** `SELECT id, name FROM business_categories WHERE id = ?`. */
 async function category(id: unknown) {
-  const n = sqlId(id);
-  const doc = n === null ? null : await col(C.businessCategories).findOne({ _id: n } as never, { projection: { name: 1 } });
-  return doc ? { id: doc._id, name: doc.name ?? null } : null;
+  const categoryId = sqlId(id);
+  const found = categoryId === null ? null : await BusinessCategory.findOne({ _id: categoryId }, { name: 1 }).lean<Row>();
+  return found ? { id: found._id, name: found.name ?? null } : null;
 }
 
 export const businessSubCategory: CrudConfig = {
   route: 'business-sub-category',
-  collection: C.businessSubCategories,
+  collection: TABLE,
   operations: ['list', 'create', 'update'],
   list: {
     where: { parent_id: { $ne: null } }, // CRUD::addClause('whereNotNull', 'parent_id')
     orderBy: withKeyDesc([['name', 'asc']]),
     searchable: ['name', 'name_hi'],
     sortable: ['parent_id', 'name', 'name_hi', 'img', 'status'],
-    filters: (q) => ({
-      where: [...eqFilter(q, 'parent_id'), ...eqFilter(q, 'status')],
-      orderBy: withKeyDesc(sortingFilter(q, [['name', 'asc']])),
+    filters: (input) => ({
+      where: [...eqFilter(input, 'parent_id'), ...eqFilter(input, 'status')],
+      orderBy: withKeyDesc(sortingFilter(input, [['name', 'asc']])),
     }),
     filterOptions: async () => ({
       // BusinessCategory::whereNull('parent_id')->orWhere('parent_id', 0)->pluck('name', 'id')
-      parent_id: (await selectSorted(C.businessCategories, ['name'], { parent_id: { $in: [null, 0] } })).map((r) => ({
-        value: String(r.id),
-        label: r.name === null ? '' : String(r.name),
+      parent_id: (await selectSorted('business_categories', ['name'], { parent_id: { $in: [null, 0] } })).map((category) => ({
+        value: String(category.id),
+        label: category.name === null ? '' : String(category.name),
       })),
       status: [
         { value: '0', label: 'InActive' },
@@ -81,42 +62,21 @@ export const businessSubCategory: CrudConfig = {
   // create: select_from_array options = only the category given by ?parent_id; update: parent_id_display = current parent.
   formOptions: async (req, id): Promise<Record<string, Array<{ value: string; label: string }>>> => {
     if (id) {
-      const n = intId(id);
-      const row = n === null ? null : await col(C.businessSubCategories).findOne({ _id: n } as never, { projection: { parent_id: 1 } });
-      const cat = row?.parent_id ? await category(row.parent_id) : null;
-      return { parent_id_display: cat ? [{ value: String(cat.id), label: String(cat.name ?? '') }] : [] };
+      const subCategoryId = intId(id);
+      const row =
+        subCategoryId === null ? null : await BusinessSubCategory.findOne({ _id: subCategoryId }, { parent_id: 1 }).lean<Row>();
+      const parent = row?.parent_id ? await category(row.parent_id) : null;
+      return { parent_id_display: parent ? [{ value: String(parent.id), label: String(parent.name ?? '') }] : [] };
     }
     const parentId = req.query.parent_id;
-    const cat =
-      parentId && /^[+-]?(\d+\.?\d*|\.\d+)$/.test(String(parentId))
-        ? await category(String(parentId))
-        : null;
-    return { parent_id: cat ? [{ value: String(cat.id), label: String(cat.name ?? '') }] : [] };
+    const parent = parentId && /^[+-]?(\d+\.?\d*|\.\d+)$/.test(String(parentId)) ? await category(String(parentId)) : null;
+    return { parent_id: parent ? [{ value: String(parent.id), label: String(parent.name ?? '') }] : [] };
   },
   fields: {
     create: ['parent_id', 'name', 'name_hi', 'img', 'slug', 'status'],
     update: ['parent_id_display', 'name', 'name_hi', 'img', 'slug', 'status', 'parent_id'],
   },
-  validation: {
-    create: {
-      rules: {
-        name: 'required|string|max:255|unique:business_sub_categories,name',
-        name_hi: 'required|string|max:255',
-        img: 'required|image|mimes:png,jpg,jpeg,svg|max:2048',
-        parent_id: 'required|exists:business_categories,id',
-      },
-      messages: MESSAGES_CREATE,
-    },
-    update: {
-      rules: {
-        name: 'required|string|max:255',
-        name_hi: 'required|string|max:255',
-        img: 'nullable|image|mimes:png,jpg,jpeg,svg|max:2048',
-        parent_id_display: 'required|exists:business_categories,id',
-      },
-      messages: MESSAGES_UPDATE,
-    },
-  },
+  validation: { create: createBusinessSubCategoryValidation, update: updateBusinessSubCategoryValidation },
   casts: { status: 'boolean' },
   serialize: async (row: Row) => {
     const parent = row.parent_id ? await category(row.parent_id) : null;

@@ -4,7 +4,7 @@ import multer from 'multer';
 import path from 'node:path';
 import { env } from './config/env.js';
 import { adminRoutes } from './admin/index.js';
-import { normalizeInput } from './core/http/input.js';
+import { normalizeInput } from './middlewares/normalize-input.js';
 import { errorHandler } from './middlewares/error-handler.js';
 import { routes } from './routes/index.js';
 

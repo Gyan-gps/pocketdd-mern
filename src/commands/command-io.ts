@@ -9,9 +9,9 @@ export interface CommandIO {
 }
 
 export const consoleIO: CommandIO = {
-  info: (m) => console.log(m),
-  warn: (m) => console.warn(m),
-  error: (m) => console.error(m),
+  info: (message) => console.log(message),
+  warn: (message) => console.warn(message),
+  error: (message) => console.error(message),
 };
 
 /** Collects output lines as `level: message` (tests). */
@@ -19,8 +19,8 @@ export function bufferIO(): CommandIO & { lines: string[] } {
   const lines: string[] = [];
   return {
     lines,
-    info: (m) => lines.push(`info: ${m}`),
-    warn: (m) => lines.push(`warn: ${m}`),
-    error: (m) => lines.push(`error: ${m}`),
+    info: (message) => lines.push(`info: ${message}`),
+    warn: (message) => lines.push(`warn: ${message}`),
+    error: (message) => lines.push(`error: ${message}`),
   };
 }

@@ -1,11 +1,12 @@
 // Port of App\Jobs\SendBusinessApproveNotification.
 import { insertRow } from '../db/mongo.js';
+import { UserNotification } from '../models/index.js';
 import { nowDb } from '../core/time.js';
-import { FirebaseService } from '../services/firebase.js';
+import { FirebaseService } from '../services/firebase.service.js';
 import { decodeOnce, errorContext, find, phpJsonEncode } from './job-helpers.js';
 import { Log } from '../core/logging/log.js';
 
-const phpEmpty = (v: unknown) => v === null || v === undefined || v === '' || v === '0';
+const phpEmpty = (value: unknown) => value === null || value === undefined || value === '' || value === '0';
 
 export async function SendBusinessApproveNotification(businessId: unknown): Promise<void> {
   try {
@@ -35,7 +36,7 @@ export async function SendBusinessApproveNotification(businessId: unknown): Prom
     // UserNotification::create(): `data` is json_encode()d here AND by the model's 'array' cast.
     // Laravel quirk: the stored value is a double-encoded JSON string.
     const now = nowDb();
-    await insertRow('user_notifications', {
+    await insertRow(UserNotification.collection.collectionName, {
       user_id: user.id,
       title,
       message,
@@ -45,8 +46,8 @@ export async function SendBusinessApproveNotification(businessId: unknown): Prom
       created_at: now,
     });
     Log.info('Database notifications inserted successfully for Business ID: ' + String(businessId ?? ''));
-  } catch (e) {
-    Log.error('Job SendBusinessApproveNotification Failed.', { business_id: businessId, ...errorContext(e) });
-    throw e;
+  } catch (error) {
+    Log.error('Job SendBusinessApproveNotification Failed.', { business_id: businessId, ...errorContext(error) });
+    throw error;
   }
 }

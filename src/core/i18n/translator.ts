@@ -1,4 +1,4 @@
-import { C, col } from '../../db/mongo.js';
+import { LanguageLine } from '../../models/index.js';
 
 /**
  * Laravel `__()` as configured in pocketdd-admin: Spatie TranslationLoaderManager over an app with no
@@ -17,16 +17,18 @@ async function loadGroup(group: string): Promise<Tree> {
   if (hit && Date.now() - hit.at < TTL_MS) return hit.tree;
   const tree: Tree = {};
   try {
-    const rows = await col(C.languageLines).find({ group }, { projection: { key: 1, text: 1 } }).toArray();
-    for (const r of rows) {
-      let text: unknown = r.text;
+    const rows = await LanguageLine.find({ group }, { key: 1, text: 1 }).lean();
+    for (const row of rows) {
+      let text: unknown = row.text;
       if (typeof text === 'string') text = JSON.parse(text);
       const value = (text as Record<string, unknown> | null)?.[LOCALE];
       if (value === undefined || value === null) continue;
       // Arr::set() — dotted keys become nested arrays.
-      const parts = String(r.key).split('.');
+      const parts = String(row.key).split('.');
       let node = tree;
-      for (const p of parts.slice(0, -1)) node = (node[p] = typeof node[p] === 'object' && node[p] ? node[p] : {}) as Tree;
+      for (const part of parts.slice(0, -1)) {
+        node = (node[part] = typeof node[part] === 'object' && node[part] ? node[part] : {}) as Tree;
+      }
       node[parts.at(-1)!] = value;
     }
   } catch {
@@ -40,15 +42,15 @@ async function loadGroup(group: string): Promise<Tree> {
 export async function trans(fullKey: string): Promise<unknown> {
   const [group, ...rest] = fullKey.split('.');
   let node: unknown = await loadGroup(group!);
-  for (const p of rest) {
-    if (!node || typeof node !== 'object' || !(p in node)) return fullKey;
-    node = (node as Tree)[p];
+  for (const part of rest) {
+    if (!node || typeof node !== 'object' || !(part in node)) return fullKey;
+    node = (node as Tree)[part];
   }
   return rest.length ? node : fullKey;
 }
 
 /** String-only variant: non-string results fall back to the key. */
 export async function transString(fullKey: string): Promise<string | null> {
-  const v = await trans(fullKey);
-  return typeof v === 'string' && v !== fullKey ? v : null;
+  const translation = await trans(fullKey);
+  return typeof translation === 'string' && translation !== fullKey ? translation : null;
 }

@@ -1,11 +1,11 @@
 // Port of App\Jobs\SendBusinessCreatedNotification.
 import { nowDb } from '../core/time.js';
-import { FirebaseService } from '../services/firebase.js';
+import { FirebaseService } from '../services/firebase.service.js';
 import { errorContext, find, insertNotifications, jobUrl, phpJsonEncode, usersWithToken } from './job-helpers.js';
 import { Log } from '../core/logging/log.js';
 
 /** PHP truthiness for `if ($this->excludeUserId)`. */
-const truthy = (v: unknown) => !(v === null || v === undefined || v === false || v === 0 || v === '' || v === '0');
+const truthy = (value: unknown) => !(value === null || value === undefined || value === false || value === 0 || value === '' || value === '0');
 
 export async function SendBusinessCreatedNotification(
   businessId: unknown,
@@ -23,7 +23,7 @@ export async function SendBusinessCreatedNotification(
 
     if (users.length > 0) {
       const firebase = new FirebaseService();
-      const tokens = users.map((u) => u.fcm_token);
+      const tokens = users.map((user) => user.fcm_token);
       const title = '🎉 New Business Added';
       const message = `${businessData.business_name_en ?? ''} has joined PocketDD. Explore the business now!`;
       const imageUrl = businessData.logo ? jobUrl(businessData.logo) : null;
@@ -45,8 +45,8 @@ export async function SendBusinessCreatedNotification(
       await insertNotifications(notifications);
       Log.info('Business notifications saved.', { count: notifications.length });
     }
-  } catch (e) {
-    Log.error('Job SendBusinessCreatedNotification Failed.', { business_id: businessId, ...errorContext(e) });
-    throw e;
+  } catch (error) {
+    Log.error('Job SendBusinessCreatedNotification Failed.', { business_id: businessId, ...errorContext(error) });
+    throw error;
   }
 }

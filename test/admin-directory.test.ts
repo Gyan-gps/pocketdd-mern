@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { after, before, describe, it } from 'node:test';
 import { env } from '../src/config/env.js';
-import { C, closeMongo, col, TABLE_COLLECTION } from '../src/db/mongo.js';
+import { C, closeMongo, col, TABLE_COLLECTION } from '../scripts/lib/raw-collections.js';
 import { exec, pool } from '../src/db/mysql.js';
 import { krutidevToUnicode } from '../src/utils/hindi/admin-hindi.js';
 import { phpJsonEncode } from '../src/utils/php/json.js';

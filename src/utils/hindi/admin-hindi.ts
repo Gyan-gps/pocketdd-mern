@@ -1,13 +1,13 @@
 // Port of App\Helpers\General::normalizeAdminHindiField() + krutidevToUnicode() + looksLikeEnglishText()
 // (pocketdd-admin/app/Helpers/General.php). Keep 1:1 with the PHP.
-import * as D from './transliterate-dictionaries.js';
+import * as dictionaries from './transliterate-dictionaries.js';
 import { phpTrim } from '../php/values.js';
 import { transliterateEnglishToHindi } from './transliterate.js';
 
 /** PHP strtr($s, $map): longest key first at each position, replaced text is never rescanned. */
 function strtr(text: string, map: Record<string, string>): string {
-  const keys = Object.keys(map).filter((k) => k !== '');
-  const maxLen = Math.max(0, ...keys.map((k) => k.length));
+  const keys = Object.keys(map).filter((key) => key !== '');
+  const maxLen = Math.max(0, ...keys.map((key) => key.length));
   let out = '';
   let i = 0;
   outer: while (i < text.length) {
@@ -50,7 +50,7 @@ export function krutidevToUnicode(text: string): string {
 }
 
 function correctKnownTransliterationMistakes(text: string): string {
-  for (const [from, to] of D.correctKnownTransliterationMistakes) text = text.split(from).join(to);
+  for (const [from, to] of dictionaries.correctKnownTransliterationMistakes) text = text.split(from).join(to);
   return text;
 }
 
@@ -74,10 +74,10 @@ export async function normalizeAdminHindiField(input: string | null): Promise<st
   if (!containsHindi && containsLatin) return krutidevToUnicode(text);
   const parts: Array<string | Promise<string>> = [];
   let last = 0;
-  for (const m of text.matchAll(/[a-zA-Z0-9.;,/[\]\-=]+/g)) {
-    parts.push(text.slice(last, m.index));
-    parts.push(looksLikeEnglishText(m[0]) ? transliterateEnglishToHindi(m[0]) : Promise.resolve(krutidevToUnicode(m[0])));
-    last = m.index! + m[0].length;
+  for (const match of text.matchAll(/[a-zA-Z0-9.;,/[\]\-=]+/g)) {
+    parts.push(text.slice(last, match.index));
+    parts.push(looksLikeEnglishText(match[0]) ? transliterateEnglishToHindi(match[0]) : Promise.resolve(krutidevToUnicode(match[0])));
+    last = match.index! + match[0].length;
   }
   parts.push(text.slice(last));
   return (await Promise.all(parts)).join('');

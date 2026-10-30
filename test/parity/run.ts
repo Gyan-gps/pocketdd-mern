@@ -10,7 +10,7 @@
 import { readdirSync } from 'node:fs';
 import { createToken } from '../support/mysql-token.js';
 import { migrate } from '../../scripts/migrate-from-mysql.js';
-import { closeMongo } from '../../src/db/mongo.js';
+import { closeMongo } from '../../scripts/lib/raw-collections.js';
 import { exec, first, pool } from '../../src/db/mysql.js';
 import type { ParityCase } from './types.js';
 

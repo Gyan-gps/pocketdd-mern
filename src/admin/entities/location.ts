@@ -7,13 +7,14 @@
 //  - `unique:locations,location_name` compares the plain value with the stored JSON, so it never matches JSON rows;
 //  - messages() uses the bare attribute key → every location_name failure shows the same text;
 //  - store()/update() redirect to business-user (UI: saveRedirect).
-import { C, col, toRows, type Row } from '../../db/mongo.js';
+import { toRows, type Row } from '../../db/mongo.js';
+import { Business, BusinessUser, CityHelplineNumber, Event, Location } from '../../models/index.js';
 import { translatedAttr } from '../../utils/php/compat.js';
 import type { CrudConfig } from '../crud.js';
 import { coerceRow, eqFilter, newRow, storeCoerced } from '../support/catalog-helpers.js';
+import { createLocationValidation, updateLocationValidation } from '../../validators/admin/location.validator.js';
 
 const APP_LOCALE = 'en';
-const MESSAGES = { location_name: 'City name should be unique and required.' };
 
 /** Spatie getTranslations(): JSON object entries, minus null / '' values; anything else → {}. */
 function translations(raw: unknown): Record<string, unknown> {
@@ -25,37 +26,37 @@ function translations(raw: unknown): Record<string, unknown> {
     return {};
   }
   if (!decoded || typeof decoded !== 'object' || Array.isArray(decoded)) return {};
-  return Object.fromEntries(Object.entries(decoded as Record<string, unknown>).filter(([, v]) => v !== null && v !== ''));
+  return Object.fromEntries(Object.entries(decoded as Record<string, unknown>).filter(([, value]) => value !== null && value !== ''));
 }
 
 /** setTranslation(): json_encode(..., JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES). */
 function setTranslation(raw: unknown, value: unknown): string {
-  const t = translations(raw);
-  t[APP_LOCALE] = value;
-  return JSON.stringify(t);
+  const translated = translations(raw);
+  translated[APP_LOCALE] = value;
+  return JSON.stringify(translated);
 }
 
 /** ON DELETE CASCADE of the location foreign keys: its links in businesses, events and staff, and its helpline numbers. */
 export async function deleteLocationCascade(id: number): Promise<void> {
-  await col(C.businesses).updateMany({ 'locations.location_id': id } as never, { $pull: { locations: { location_id: id } } } as never);
-  await col(C.events).updateMany({ 'locations.location_id': id } as never, { $pull: { locations: { location_id: id } } } as never);
-  await col(C.businessUsers).updateMany({ 'locations.location_id': id } as never, { $pull: { locations: { location_id: id } } } as never);
-  await col(C.cityHelplines).deleteMany({ location_id: id });
+  await Business.updateMany({ 'locations.location_id': id }, { $pull: { locations: { location_id: id } } });
+  await Event.updateMany({ 'locations.location_id': id }, { $pull: { locations: { location_id: id } } });
+  await BusinessUser.updateMany({ 'locations.location_id': id }, { $pull: { locations: { location_id: id } } });
+  await CityHelplineNumber.deleteMany({ location_id: id });
 }
 
 export const location: CrudConfig = {
   route: 'location',
-  collection: C.locations,
+  collection: 'locations',
   operations: ['list', 'create', 'update', 'show'],
   list: {
     searchable: ['location_name'], // LIKE on the raw JSON column
     sortable: ['location_name', 'status'],
-    filters: (q) => ({ where: [...eqFilter(q, 'id'), ...eqFilter(q, 'status')] }),
+    filters: (input) => ({ where: [...eqFilter(input, 'id'), ...eqFilter(input, 'status')] }),
     filterOptions: async () => ({
       // Location::where('status', 1)->pluck('location_name', 'id') — pluck returns the raw JSON column
-      id: toRows(await col(C.locations).find({ status: 1 }).project({ location_name: 1 }).sort({ _id: 1 }).toArray()).map((r) => ({
-        value: String(r.id),
-        label: r.location_name === null ? '' : String(r.location_name),
+      id: toRows(await Location.find({ status: 1 }, { location_name: 1 }).sort({ _id: 1 }).lean<Row[]>()).map((location) => ({
+        value: String(location.id),
+        label: location.location_name === null ? '' : String(location.location_name),
       })),
       status: [
         { value: '1', label: 'Active City' },
@@ -64,10 +65,7 @@ export const location: CrudConfig = {
     }),
   },
   fields: { create: ['location_name', 'status'], update: ['location_name', 'status'] },
-  validation: {
-    create: { rules: { location_name: 'required|unique:locations,location_name' }, messages: MESSAGES },
-    update: { rules: { location_name: 'required' }, messages: MESSAGES },
-  },
+  validation: { create: createLocationValidation, update: updateLocationValidation },
   casts: { status: 'boolean' },
   serialize: (row: Row) => ({
     ...row,

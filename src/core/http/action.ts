@@ -20,11 +20,11 @@ export function action(name: string, handler: Handler, opts: { logFailures?: boo
     try {
       const result = await handler(req, res);
       if (!res.headersSent && result !== undefined) res.json(result);
-    } catch (e) {
-      if (logFailures) await logApiFailure(e, req);
-      console.error(`[${name}]`, e);
+    } catch (error) {
+      if (logFailures) await logApiFailure(error, req);
+      console.error(`[${name}]`, error);
       if (res.headersSent) return;
-      const err = e as Error;
+      const err = error as Error;
       res.status(500).json(
         env.debug ? { message: err.message, exception: err.name } : { message: 'Server Error' },
       );

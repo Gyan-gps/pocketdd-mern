@@ -1,6 +1,7 @@
 // Tests that diff PHP (MySQL) against Node (MongoDB): fixtures are written to MySQL, `sync()` copies them to
 // MongoDB, and rows written by the Node API are read back here as the SQL row they would have been.
-import { TABLE_COLLECTION, col, toRow, toRows, type Filter, type Row } from '../../src/db/mongo.js';
+import { TABLE_COLLECTION, col } from '../../scripts/lib/raw-collections.js';
+import { toRow, toRows, type Filter, type Row } from '../../src/db/mongo.js';
 import { migrate } from '../../scripts/migrate-from-mysql.js';
 
 /** Re-copy MySQL into MongoDB (drops rows the Node API created since the last sync). */

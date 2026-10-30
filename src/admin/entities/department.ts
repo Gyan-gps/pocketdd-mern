@@ -5,13 +5,7 @@ import type { Row } from '../../db/mongo.js';
 import type { CrudConfig } from '../crud.js';
 import { coerceRow, newRow, storeCoerced } from '../support/catalog-helpers.js';
 import { rawJson } from '../support/directory-helpers.js';
-
-const MESSAGES = {
-  'department_name.required': 'Please enter the department name (English)',
-  'department_name_hi.required': 'कृपया विभाग का नाम (हिंदी) दर्ज करें।',
-  'department_name.unique': 'The department name (English) already exists',
-  'department_name_hi.unique': 'विभाग का नाम (हिंदी) पहले से मौजूद है।',
-};
+import { createDepartmentValidation, updateDepartmentValidation } from '../../validators/admin/department.validator.js';
 
 const FIELDS = ['department_name', 'department_name_hi', 'slug', 'status'];
 
@@ -31,19 +25,7 @@ export const department: CrudConfig = {
     sortable: ['department_name', 'department_name_hi', 'status'],
   },
   fields: { create: FIELDS, update: FIELDS },
-  validation: {
-    create: {
-      rules: {
-        department_name: 'required|max:255|unique:departments,department_name',
-        department_name_hi: 'required|max:255|unique:departments,department_name_hi',
-      },
-      messages: MESSAGES,
-    },
-    update: {
-      rules: { department_name: 'required|min:5|max:255', department_name_hi: 'required|min:5|max:255' },
-      messages: MESSAGES,
-    },
-  },
+  validation: { create: createDepartmentValidation, update: updateDepartmentValidation },
   casts: { status: 'boolean' },
   // JSON columns are native values now; the API returned their stored text.
   serialize: (row: Row) => ({

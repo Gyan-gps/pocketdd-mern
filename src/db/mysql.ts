@@ -60,9 +60,9 @@ function interpolate(sql: string, params: unknown[]): string {
   });
 }
 
-function wrap(e: unknown, sql: string, params: unknown[]): never {
-  const err = e as { sqlState?: string; errno?: number; sqlMessage?: string; message?: string };
-  if (!err?.sqlState) throw e;
+function wrap(error: unknown, sql: string, params: unknown[]): never {
+  const err = error as { sqlState?: string; errno?: number; sqlMessage?: string; message?: string };
+  if (!err?.sqlState) throw error;
   const state = err.sqlState;
   const pdo = `SQLSTATE[${state}]: ${SQLSTATE_TEXT[state] ?? 'General error'}: ${err.errno} ${err.sqlMessage ?? err.message}`;
   const details = `Host: ${env.db.host}, Port: ${env.db.port}, Database: ${env.db.database}`;
@@ -78,8 +78,8 @@ export async function all<T = Row>(sql: string, params: unknown[] = []): Promise
   try {
     const [rows] = await pool.query<Row[]>(sql, params);
     return rows as T[];
-  } catch (e) {
-    wrap(e, sql, params);
+  } catch (error) {
+    wrap(error, sql, params);
   }
 }
 
@@ -93,8 +93,8 @@ export async function exec(sql: string, params: unknown[] = []): Promise<mysql.R
   try {
     const [res] = await pool.query<mysql.ResultSetHeader>(sql, params);
     return res;
-  } catch (e) {
-    wrap(e, sql, params);
+  } catch (error) {
+    wrap(error, sql, params);
   }
 }
 

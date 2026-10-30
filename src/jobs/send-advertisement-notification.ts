@@ -1,6 +1,6 @@
 // Port of App\Jobs\SendAdvertisementNotification.
 import { nowDb } from '../core/time.js';
-import { FirebaseService } from '../services/firebase.js';
+import { FirebaseService } from '../services/firebase.service.js';
 import { errorContext, find, insertNotifications, jobUrl, phpJsonEncode, usersWithToken } from './job-helpers.js';
 import { Log } from '../core/logging/log.js';
 
@@ -21,7 +21,7 @@ export async function SendAdvertisementNotification(advertisementId: unknown, bu
 
     if (users.length > 0) {
       const firebase = new FirebaseService();
-      const tokens = users.map((u) => u.fcm_token);
+      const tokens = users.map((user) => user.fcm_token);
 
       const title = '📢 New Advertisement';
       // sprintf('%s', null) → ''
@@ -54,13 +54,13 @@ export async function SendAdvertisementNotification(advertisementId: unknown, bu
 
       await insertNotifications(notifications);
     }
-  } catch (e) {
+  } catch (error) {
     // Laravel quirk: the log message names the wrong job.
     Log.error('Job SendBusinessCreatedNotification Failed.', {
       advertisement_id: advertisementId,
       business_id: businessId,
-      ...errorContext(e),
+      ...errorContext(error),
     });
-    throw e;
+    throw error;
   }
 }

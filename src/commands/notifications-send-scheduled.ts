@@ -1,5 +1,6 @@
 // Port of App\Console\Commands\SendScheduledNotifications (`notifications:send-scheduled`).
-import { C, col, toRow } from '../db/mongo.js';
+import { toRow } from '../db/mongo.js';
+import { Advertisement, Business, type AnyModel } from '../models/index.js';
 import { nowDb } from '../core/time.js';
 import { dispatchJob } from '../jobs/queue.js';
 import { errorContext } from '../jobs/job-helpers.js';
@@ -10,17 +11,17 @@ import { type CommandIO, FAILURE, SUCCESS } from './command-io.js';
 const onDate = (today: string) => ({ from_date: { $regex: `^${today}` } });
 
 /** Model::whereDate(...)->chunkById(100, fn) */
-async function chunkById(collection: string, today: string, fn: (rows: Record<string, any>[]) => Promise<void>) {
+async function chunkById(model: AnyModel, today: string, handleChunk: (rows: Record<string, any>[]) => Promise<void>) {
   let lastId: number | null = null;
   for (;;) {
-    const docs = await col(collection)
-      .find(lastId === null ? onDate(today) : { ...onDate(today), _id: { $gt: lastId } as never })
+    const documents = await model
+      .find(lastId === null ? onDate(today) : { ...onDate(today), _id: { $gt: lastId } })
       .sort({ _id: 1 })
       .limit(100)
-      .toArray();
-    const rows: Record<string, any>[] = docs.map((d) => toRow(d)!);
+      .lean<Record<string, any>[]>();
+    const rows: Record<string, any>[] = documents.map((document) => toRow(document)!);
     if (!rows.length) break;
-    await fn(rows);
+    await handleChunk(rows);
     if (rows.length < 100) break;
     lastId = rows[rows.length - 1]!.id;
   }
@@ -33,14 +34,14 @@ export async function notificationsSendScheduled(io: CommandIO): Promise<number>
     let adCount = 0;
     let businessCount = 0;
 
-    const totalAds = await col(C.advertisements).countDocuments(onDate(today));
+    const totalAds = await Advertisement.countDocuments(onDate(today));
     io.info(`Found ${totalAds} advertisements to notify.`);
-    const totalBusinesses = await col(C.businesses).countDocuments(onDate(today));
+    const totalBusinesses = await Business.countDocuments(onDate(today));
     io.info(`Found ${totalBusinesses} businesses to notify.`);
 
     io.info('Starting scheduled notification dispatch for: ' + today);
 
-    await chunkById(C.advertisements, today, async (ads) => {
+    await chunkById(Advertisement, today, async (ads) => {
       for (const ad of ads) {
         // client_name stores the business id
         await dispatchJob('SendAdvertisementNotification', ad.id, ad.client_name);
@@ -49,10 +50,14 @@ export async function notificationsSendScheduled(io: CommandIO): Promise<number>
     });
     io.info(`Successfully dispatched ${adCount} advertisement notifications.`);
 
-    await chunkById(C.businesses, today, async (businesses) => {
-      for (const b of businesses) {
-        const notificationData = { state_en: b.state_en ?? null, dist_en: b.dist_en ?? null, business_name_en: b.business_name_en ?? null };
-        await dispatchJob('SendBusinessCreatedNotification', b.id, notificationData, b.user_id);
+    await chunkById(Business, today, async (businesses) => {
+      for (const business of businesses) {
+        const notificationData = {
+          state_en: business.state_en ?? null,
+          dist_en: business.dist_en ?? null,
+          business_name_en: business.business_name_en ?? null,
+        };
+        await dispatchJob('SendBusinessCreatedNotification', business.id, notificationData, business.user_id);
         businessCount++;
       }
     });
@@ -64,10 +69,10 @@ export async function notificationsSendScheduled(io: CommandIO): Promise<number>
       dispatched_businesses: businessCount,
     });
     return SUCCESS;
-  } catch (e) {
-    const c = errorContext(e);
-    Log.error('SendScheduledNotifications Cron Failed', { message: c.error_message, line: c.line, file: c.file });
-    io.error(c.error_message);
+  } catch (error) {
+    const context = errorContext(error);
+    Log.error('SendScheduledNotifications Cron Failed', { message: context.error_message, line: context.line, file: context.file });
+    io.error(context.error_message);
     return FAILURE;
   }
 }

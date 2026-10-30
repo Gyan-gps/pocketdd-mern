@@ -25,6 +25,6 @@ export class PhpError extends Error {
   exceptionClass = 'TypeError';
 }
 
-export function errorMessage(e: unknown): string {
-  return e instanceof Error ? e.message : String(e);
+export function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

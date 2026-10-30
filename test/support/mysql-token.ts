@@ -2,7 +2,7 @@
 // the per-request re-sync in test/parity/run.ts (same id and hash on both sides).
 import crypto from 'node:crypto';
 import zlib from 'node:zlib';
-import { strRandom, USER_MORPH } from '../../src/core/auth/sanctum.js';
+import { strRandom, USER_MORPH } from '../../src/core/auth/access-tokens.js';
 import { nowDb } from '../../src/core/time.js';
 import { exec } from '../../src/db/mysql.js';
 

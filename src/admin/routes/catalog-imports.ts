@@ -13,7 +13,9 @@ import path from 'node:path';
 import { Router, type Request, type Response } from 'express';
 import { env } from '../../config/env.js';
 import { nowDb } from '../../core/time.js';
-import { C, col, insertRow, TABLE_COLLECTION, toRows, transaction, type ClientSession } from '../../db/mongo.js';
+import { CASE_INSENSITIVE } from '../../db/eloquent.js';
+import { insertRow, toRows, transaction, type ClientSession, type Row } from '../../db/mongo.js';
+import { BusinessCategory, MODEL_BY_TABLE, Slider } from '../../models/index.js';
 import { newRow } from '../support/catalog-helpers.js';
 import { isUploadedFile, strSlug, type UploadedFileLike } from '../../utils/php/values.js';
 import { quickTranslatedText } from '../../utils/general.js';
@@ -32,10 +34,12 @@ interface Failure {
 }
 
 /** Laravel's validateRequired. */
-const present = (v: CellValue | undefined) => !(v === null || v === undefined || (typeof v === 'string' && v.trim() === ''));
+const present = (value: CellValue | undefined) =>
+  !(value === null || value === undefined || (typeof value === 'string' && value.trim() === ''));
 
 /** :input → getDisplayableValue(): null → 'empty', bool → 'true'/'false'. */
-const display = (v: CellValue | undefined) => (v === null || v === undefined ? 'empty' : typeof v === 'boolean' ? String(v) : String(v));
+const display = (value: CellValue | undefined) =>
+  value === null || value === undefined ? 'empty' : typeof value === 'boolean' ? String(value) : String(value);
 
 /**
  * Validator::make($rows, $rules, $messages)->validate() for one row (batch size 1), inside the import's own
@@ -52,34 +56,34 @@ async function validateRow(
   const failures: Failure[] = [];
   for (const [attribute, list] of Object.entries(rules)) {
     const exists = attribute in row;
-    const v = row[attribute];
+    const value = row[attribute];
     const nullable = list.includes('nullable');
     const errors: string[] = [];
     for (const raw of list) {
       const [rule, paramStr = ''] = raw.split(/:(.*)/s) as [string, string?];
       const params = paramStr ? paramStr.split(',') : [];
-      if (rule !== 'required' && (!exists || (nullable && v === null))) continue;
+      if (rule !== 'required' && (!exists || (nullable && value === null))) continue;
       let ok = true;
       switch (rule) {
         case 'required':
-          ok = present(v);
+          ok = present(value);
           break;
         case 'nullable':
           break;
         case 'string':
-          ok = typeof v === 'string';
+          ok = typeof value === 'string';
           break;
         case 'max':
-          ok = [...String(v ?? '')].length <= Number(params[0]);
+          ok = [...String(value ?? '')].length <= Number(params[0]);
           break;
         case 'in':
-          ok = v !== null && v !== undefined && typeof v !== 'boolean' && params.includes(String(v));
+          ok = value !== null && value !== undefined && typeof value !== 'boolean' && params.includes(String(value));
           break;
         case 'unique':
         case 'exists': {
           const [table, column] = params;
-          const c = await countEqual(session, table!, column!, v);
-          ok = rule === 'unique' ? c === 0 : c > 0;
+          const count = await countEqual(session, table!, column!, value);
+          ok = rule === 'unique' ? count === 0 : count > 0;
           break;
         }
         default:
@@ -87,7 +91,7 @@ async function validateRow(
       }
       if (ok) continue;
       const template = messages[`${attribute}.${rule}`] ?? `validation.${rule}`;
-      errors.push(template.replace(/:input/g, display(v)));
+      errors.push(template.replace(/:input/g, display(value)));
       if (rule === 'required') break;
     }
     if (errors.length) failures.push({ row: rowNumber, attribute, errors });
@@ -96,23 +100,24 @@ async function validateRow(
 }
 
 /** `SELECT COUNT(*) FROM <table> WHERE <column> = ?` inside the import transaction (case-insensitive, '5' equals 5). */
-async function countEqual(session: ClientSession, table: string, column: string, v: CellValue | undefined): Promise<number> {
-  if (v === null || v === undefined) return 0; // = NULL is never true
-  const value = typeof v === 'boolean' ? (v ? 1 : 0) : v;
+async function countEqual(session: ClientSession, table: string, column: string, cell: CellValue | undefined): Promise<number> {
+  if (cell === null || cell === undefined) return 0; // = NULL is never true
+  const value = typeof cell === 'boolean' ? (cell ? 1 : 0) : cell;
   const asNumber = typeof value === 'string' && value.trim() !== '' && !Number.isNaN(Number(value)) ? Number(value) : null;
-  const name = TABLE_COLLECTION[table];
-  if (!name) throw new Error(`No collection for table ${table}`);
-  return col(name).countDocuments(
-    { [column === 'id' ? '_id' : column]: { $in: asNumber === null ? [value] : [value, asNumber] } },
-    { collation: { locale: 'en', strength: 2 }, session },
-  );
+  const model = MODEL_BY_TABLE[table];
+  if (!model) throw new Error(`No collection for table ${table}`);
+  return model
+    .countDocuments({ [column === 'id' ? '_id' : column]: { $in: asNumber === null ? [value] : [value, asNumber] } })
+    .collation(CASE_INSENSITIVE)
+    .session(session);
 }
 
 /** Cell → value stored in a VARCHAR column (MySQL coerces numbers/booleans to text). */
-const text = (v: CellValue | undefined) => (v === null || v === undefined ? null : typeof v === 'boolean' ? (v ? '1' : '0') : String(v));
+const text = (value: CellValue | undefined) =>
+  value === null || value === undefined ? null : typeof value === 'boolean' ? (value ? '1' : '0') : String(value);
 
 /** "<errors…> on line number N <br />" per failure (insertXData's catch of ValidationException). */
-const failureText = (failures: Failure[]) => failures.map((f) => `${f.errors.join('')} on line number ${f.row} <br />`).join('');
+const failureText = (failures: Failure[]) => failures.map((failure) => `${failure.errors.join('')} on line number ${failure.row} <br />`).join('');
 
 class ImportValidationException extends Error {
   constructor(readonly failures: Failure[]) {
@@ -122,12 +127,12 @@ class ImportValidationException extends Error {
 
 // ---------------------------------------------------------------- shared upload handling
 
-function hasFile(v: unknown): v is UploadedFileLike {
-  return isUploadedFile(v) && v.originalname !== '';
+function hasFile(value: unknown): value is UploadedFileLike {
+  return isUploadedFile(value) && value.originalname !== '';
 }
 
 /** `mimes:xlsx` (client extension; Laravel guesses from content — a real .xlsx gives the same answer). */
-const isXlsx = (f: UploadedFileLike) => f.originalname.split('.').pop()?.toLowerCase() === 'xlsx';
+const isXlsx = (file: UploadedFileLike) => file.originalname.split('.').pop()?.toLowerCase() === 'xlsx';
 
 /** copy($path, public_path().'/uploads/import_file/<dir>/'.$originalName) — fails (500) if the folder is missing. */
 function copyToImportFolder(file: UploadedFileLike, dir: string): string {
@@ -153,7 +158,7 @@ function handleImportRoute(
   folder: string,
   perRow: (session: ClientSession, rowNumber: number, row: Record<string, CellValue>) => Promise<void>,
 ) {
-  return async (req: Request, res: Response, next: (e?: unknown) => void) => {
+  return async (req: Request, res: Response, next: (error?: unknown) => void) => {
     try {
       const file = req.input[field];
       if (!hasFile(file)) return void res.json({ alert: 'warning', message: 'Please select a file' });
@@ -162,13 +167,13 @@ function handleImportRoute(
       try {
         await runImport(dest, perRow);
         res.json({ success: 'Your sheet has been imported successfully.' });
-      } catch (e) {
-        if (e instanceof ImportValidationException) return void res.json({ error: failureText(e.failures) });
+      } catch (error) {
+        if (error instanceof ImportValidationException) return void res.json({ error: failureText(error.failures) });
         // catch (\Exception $e) → back()->with('error', $e->getTraceAsString())
-        res.json({ error: e instanceof Error ? (e.stack ?? e.message) : String(e) });
+        res.json({ error: error instanceof Error ? (error.stack ?? error.message) : String(error) });
       }
-    } catch (e) {
-      next(e);
+    } catch (error) {
+      next(error);
     }
   };
 }
@@ -198,7 +203,7 @@ async function categoryRow(session: ClientSession, rowNumber: number, row: Recor
   const now = nowDb();
   // BusinessCategory::insertNewCategory() — query-builder insertGetId (no Sluggable, no lft/rgt).
   await insertRow(
-    C.businessCategories,
+    'business_categories',
     newRow('business_categories', { name, name_hi: nameHi, slug, status, created_at: now, updated_at: now }),
     session,
   );
@@ -221,15 +226,16 @@ const SUB_MESSAGES = {
   'statusactive_inactive.in': 'Invalid status ":input". Allowed values: Active or Inactive.',
 };
 
-const phpTrimStr = (v: CellValue) => String(v ?? '').replace(/^[ \t\n\r\0\x0B]+|[ \t\n\r\0\x0B]+$/g, '');
+const phpTrimStr = (value: CellValue) => String(value ?? '').replace(/^[ \t\n\r\0\x0B]+|[ \t\n\r\0\x0B]+$/g, '');
 
 async function subCategoryRow(session: ClientSession, rowNumber: number, row: Record<string, CellValue>) {
   // SkipsOnFailure + SkipsFailures: invalid rows are skipped silently.
   if ((await validateRow(session, rowNumber, row, SUB_RULES, SUB_MESSAGES)).length) return;
-  const parent = await col(C.businessCategories).findOne(
+  const parent = await BusinessCategory.findOne(
     { name: phpTrimStr(row.category_name) },
-    { collation: { locale: 'en', strength: 2 }, sort: { _id: 1 }, projection: { _id: 1 }, session },
-  );
+    { _id: 1 },
+    { collation: CASE_INSENSITIVE, sort: { _id: 1 }, session },
+  ).lean<Row>();
   if (!parent) return;
   const name = phpTrimStr(row.sub_category_name);
   const nameHi = await quickTranslatedText(name);
@@ -237,7 +243,7 @@ async function subCategoryRow(session: ClientSession, rowNumber: number, row: Re
   const now = nowDb();
   // new BusinessSubCategory([...]) saved by ToModel (Eloquent insert; Sluggable keeps the non-empty slug).
   await insertRow(
-    C.businessSubCategories,
+    'business_sub_categories',
     newRow('business_sub_categories', {
       parent_id: parent._id,
       name,
@@ -263,13 +269,14 @@ catalogImportRoutes.post(
 /** GET slider/reorder — every entry (the view nests them by parent_id / lft). */
 catalogImportRoutes.get('/slider/reorder', adminAuth, async (_req, res, next) => {
   try {
-    res.json(toRows(await col(C.sliders).find().sort({ _id: 1 }).toArray()));
-  } catch (e) {
-    next(e);
+    res.json(toRows(await Slider.find().sort({ _id: 1 }).lean<Row[]>()));
+  } catch (error) {
+    next(error);
   }
 });
 
-const empty = (v: unknown) => v === undefined || v === null || v === '' || v === '0' || v === 0 || v === false;
+const empty = (value: unknown) =>
+  value === undefined || value === null || value === '' || value === '0' || value === 0 || value === false;
 
 /** POST slider/reorder — saveReorder() → CrudPanel::updateTreeOrder() (4 CASE updates in one transaction). */
 catalogImportRoutes.post('/slider/reorder', adminAuth, async (req, res, next) => {
@@ -285,35 +292,37 @@ catalogImportRoutes.post('/slider/reorder', adminAuth, async (req, res, next) =>
     }
     const list = Object.values(entries as Record<string, Record<string, unknown>>);
     if (!list.length) return void res.send(''); // `return false` → empty 200 body
-    const keys = (await col(C.sliders).find({}, { projection: { _id: 1 } }).sort({ _id: 1 }).toArray()).map((r) => String(r._id));
+    const keys = (await Slider.find({}, { _id: 1 }).sort({ _id: 1 }).lean<Row[]>()).map((slider) => String(slider._id));
     const items = list
-      .filter((i) => i.item_id !== '' && i.item_id !== null && i.item_id !== undefined && keys.includes(String(i.item_id)))
-      .map((i) => ({
-        id: i.item_id,
-        parent_id: empty(i.parent_id) ? null : i.parent_id,
-        depth: empty(i.depth) ? null : Math.trunc(Number(i.depth)),
-        lft: empty(i.left) ? null : Math.trunc(Number(i.left)),
-        rgt: empty(i.right) ? null : Math.trunc(Number(i.right)),
+      .filter(
+        (entry) => entry.item_id !== '' && entry.item_id !== null && entry.item_id !== undefined && keys.includes(String(entry.item_id)),
+      )
+      .map((entry) => ({
+        id: entry.item_id,
+        parent_id: empty(entry.parent_id) ? null : entry.parent_id,
+        depth: empty(entry.depth) ? null : Math.trunc(Number(entry.depth)),
+        lft: empty(entry.left) ? null : Math.trunc(Number(entry.left)),
+        rgt: empty(entry.right) ? null : Math.trunc(Number(entry.right)),
       }));
-    const sent = items.map((i) => String(i.id));
-    const itemKeys = keys.filter((k) => sent.includes(k));
+    const sent = items.map((item) => String(item.id));
+    const itemKeys = keys.filter((key) => sent.includes(key));
     // Each CASE update takes the first WHEN that matches, so a repeated id keeps its first entry.
     const first = new Map<string, (typeof items)[number]>();
     for (const item of items) if (!first.has(String(item.id))) first.set(String(item.id), item);
-    const int = (v: unknown) => (v === null ? null : Number(v) || 0);
+    const integerOrNull = (value: unknown) => (value === null ? null : Number(value) || 0);
     await transaction(async (session) => {
       for (const key of itemKeys) {
         const item = first.get(key)!;
-        await col(C.sliders).updateOne(
-          { _id: Number(key) as never },
-          { $set: { parent_id: int(item.parent_id), lft: item.lft, rgt: item.rgt, depth: item.depth } },
+        await Slider.updateOne(
+          { _id: Number(key) },
+          { $set: { parent_id: integerOrNull(item.parent_id), lft: item.lft, rgt: item.rgt, depth: item.depth } },
           { session },
         );
       }
     });
     res.send(`success for ${items.length} items`);
-  } catch (e) {
-    next(e);
+  } catch (error) {
+    next(error);
   }
 });
 

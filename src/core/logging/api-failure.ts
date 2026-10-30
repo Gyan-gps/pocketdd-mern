@@ -1,5 +1,6 @@
 import type { Request } from 'express';
-import { C, insertRow } from '../../db/mongo.js';
+import { insertRow } from '../../db/mongo.js';
+import { ApiFailure } from '../../models/index.js';
 import { nowDb } from '../time.js';
 
 const STRIP = ['password', 'password_confirmation', 'token', 'access_token', 'refresh_token', 'authorization', 'api_token'];
@@ -15,9 +16,9 @@ export async function logApiFailure(
 ): Promise<void> {
   try {
     const err = error instanceof Error ? error : new Error(String(error));
-    const data = Object.fromEntries(Object.entries(req.input ?? {}).filter(([k]) => !STRIP.includes(k)));
+    const data = Object.fromEntries(Object.entries(req.input ?? {}).filter(([key]) => !STRIP.includes(key)));
     const now = nowDb();
-    await insertRow(C.apiFailures, {
+    await insertRow(ApiFailure.collection.collectionName, {
       api_name: req.apiName ?? req.path.replace(/^\//, ''),
       method: req.method,
       request_url: `${req.protocol}://${req.get('host')}${req.originalUrl}`,

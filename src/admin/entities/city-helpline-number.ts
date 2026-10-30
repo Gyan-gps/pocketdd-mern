@@ -2,7 +2,12 @@
 // (+ CityHelplineNumberRequest / CityHelplineNumberUpdateRequest, public/assets/js/city_helpline_number.js).
 // Operations: List, Create, Update, Show. Model: CityHelplineNumber ($casts city_helpline => array, plus a
 // getCityHelplineAttribute() accessor that json_decodes the raw value and foreach()es it).
-import { C, type Row } from '../../db/mongo.js';
+import type { Row } from '../../db/mongo.js';
+import { CityHelplineNumber } from '../../models/index.js';
+import {
+  createCityHelplineNumberValidation,
+  updateCityHelplineNumberValidation,
+} from '../../validators/admin/city-helpline-number.validator.js';
 import type { CrudConfig } from '../crud.js';
 import { coerceRow, groupValues, newRow, storeCoerced, eqFilter } from '../support/catalog-helpers.js';
 import {
@@ -18,24 +23,6 @@ import {
   type FormOpts,
 } from '../support/directory-helpers.js';
 
-const HELPLINE_RULES = {
-  'city_helpline.*.ambulance_number': 'required',
-  'city_helpline.*.fire_safety_number': 'required',
-  'city_helpline.*.women_helpline': 'required',
-  'city_helpline.*.police_headquarters': 'required',
-};
-
-const MESSAGES = {
-  'city_helpline.*.ambulance_number.required': 'Ambulance Number is Required',
-  'city_helpline.*.fire_safety_number.required': 'Fire Safety Number is Required',
-  'city_helpline.*.women_helpline.required': 'Women Helpline Number is Required',
-  'city_helpline.*.police_headquarters.required': 'Police Headquarter Number is Required',
-  // Laravel: a message keyed by the bare attribute applies to every rule of that attribute.
-  state: 'State is Required!',
-  city: 'City is Required!',
-  pincode_id: 'PinCode is Required!',
-};
-
 const LABELS: Record<string, string> = {
   ambulance_no: 'Ambulance Number',
   fire_safety: 'Fire Safety',
@@ -43,8 +30,16 @@ const LABELS: Record<string, string> = {
   police_headquarters: 'Police Headquarters',
 };
 
-const phpType = (v: unknown) =>
-  v === null || v === undefined ? 'null' : typeof v === 'boolean' ? 'bool' : typeof v === 'number' ? (Number.isInteger(v) ? 'int' : 'float') : typeof v;
+const phpType = (value: unknown) =>
+  value === null || value === undefined
+    ? 'null'
+    : typeof value === 'boolean'
+      ? 'bool'
+      : typeof value === 'number'
+        ? Number.isInteger(value)
+          ? 'int'
+          : 'float'
+        : typeof value;
 
 /**
  * CityHelplineNumber::getCityHelplineAttribute($raw).
@@ -59,8 +54,10 @@ export function cityHelplineAccessor(raw: unknown): unknown {
   const items = Array.isArray(data) ? data : Object.values(data as object);
   for (const item of items) {
     if (item && typeof item === 'object' && !Array.isArray(item)) {
-      const it = item as Record<string, unknown>;
-      if (it.name !== undefined && it.name !== null && typeof it.name === 'string' && LABELS[it.name]) it.name = LABELS[it.name];
+      const helpline = item as Record<string, unknown>;
+      if (helpline.name !== undefined && helpline.name !== null && typeof helpline.name === 'string' && LABELS[helpline.name]) {
+        helpline.name = LABELS[helpline.name];
+      }
     }
   }
   return data;
@@ -68,25 +65,31 @@ export function cityHelplineAccessor(raw: unknown): unknown {
 
 /** `$data[0]['key'] ?? '-'` rendered by a closure column (empty → '-'). */
 function firstRowValue(data: unknown, key: string): unknown {
-  const row0 = Array.isArray(data) ? data[0] : data && typeof data === 'object' ? (data as Record<string, unknown>)['0'] : undefined;
-  const v = row0 && typeof row0 === 'object' && !Array.isArray(row0) ? (row0 as Record<string, unknown>)[key] : undefined;
-  const out = v === undefined || v === null ? '-' : v;
-  return phpEmpty(out) ? '-' : out;
+  const firstRow = Array.isArray(data) ? data[0] : data && typeof data === 'object' ? (data as Record<string, unknown>)['0'] : undefined;
+  const value = firstRow && typeof firstRow === 'object' && !Array.isArray(firstRow) ? (firstRow as Record<string, unknown>)[key] : undefined;
+  const display = value === undefined || value === null ? '-' : value;
+  return phpEmpty(display) ? '-' : display;
 }
 
 export const cityHelplineNumber: CrudConfig = {
   route: 'city-helpline-number',
-  collection: C.cityHelplines,
+  collection: CityHelplineNumber.collection.collectionName,
   operations: ['list', 'create', 'update', 'show'],
   list: {
     // closure columns are not searchable; state/city and `pincode_id` (->type('text')) are.
     searchable: ['state', 'city', 'pincode_id'],
     sortable: ['state', 'city', 'pincode_id'],
     orderBy: [['id', 'desc']],
-    filters: (q) => ({ where: [...eqFilter(q, 'state'), ...eqFilter(q, 'district', 'city')] }),
+    filters: (input) => ({ where: [...eqFilter(input, 'state'), ...eqFilter(input, 'district', 'city')] }),
     filterOptions: async () => ({
-      state: pluckSame(await groupValues(C.cityHelplines, 'state', { match: { state: { $ne: null } } }), 'state'),
-      district: pluckSame(await groupValues(C.cityHelplines, 'city', { match: { city: { $ne: null } } }), 'city'),
+      state: pluckSame(
+        await groupValues(CityHelplineNumber.collection.collectionName, 'state', { match: { state: { $ne: null } } }),
+        'state',
+      ),
+      district: pluckSame(
+        await groupValues(CityHelplineNumber.collection.collectionName, 'city', { match: { city: { $ne: null } } }),
+        'city',
+      ),
     }),
   },
   formOptions: async (_req, id): Promise<FormOpts> => (id ? {} : { state: await stateOptions() }),
@@ -99,16 +102,16 @@ export const cityHelplineNumber: CrudConfig = {
     create: {
       rules: (req) => {
         decodeRepeatableInput(req, 'city_helpline');
-        return { ...HELPLINE_RULES, state: 'required', city: 'required', pincode_id: 'required' };
+        return { ...createCityHelplineNumberValidation.rules };
       },
-      messages: MESSAGES,
+      messages: createCityHelplineNumberValidation.messages,
     },
     update: {
       rules: (req) => {
         decodeRepeatableInput(req, 'city_helpline');
-        return { ...HELPLINE_RULES, state: 'required', city: 'required' };
+        return { ...updateCityHelplineNumberValidation.rules };
       },
-      messages: MESSAGES,
+      messages: updateCityHelplineNumberValidation.messages,
     },
   },
   serialize: async (row: Row) => {
@@ -132,9 +135,10 @@ export const cityHelplineNumber: CrudConfig = {
       if ('city_helpline' in data) {
         data.city_helpline = keepIfJsonEquivalent(existing, 'city_helpline', jsonCastWrite(data.city_helpline));
       }
-      const out = await onlyColumns('city_helpline_numbers', data);
-      coerceRow('city_helpline_numbers', out);
-      return out;
+      const row = await onlyColumns('city_helpline_numbers', data);
+      coerceRow('city_helpline_numbers', row);
+      return row;
+
     },
     afterUpdate: (id, data) => storeCoerced('city_helpline_numbers', id, data),
   },

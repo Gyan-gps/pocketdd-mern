@@ -11,9 +11,9 @@ export async function quickTranslatedText(text: unknown): Promise<string | null>
   if (Array.isArray(text) || (text !== null && typeof text === 'object')) {
     throw new PhpError(`trim(): Argument #1 ($string) must be of type string, array given`);
   }
-  const t = phpTrim(phpStr(text));
-  if (t === '' || t === '0') return null; // empty() → 400 {"error": …}
-  const out = await transliterateEnglishToHindi(t);
+  const trimmed = phpTrim(phpStr(text));
+  if (trimmed === '' || trimmed === '0') return null; // empty() → 400 {"error": …}
+  const out = await transliterateEnglishToHindi(trimmed);
   return out === '' ? null : out;
 }
 

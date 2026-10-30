@@ -6,8 +6,9 @@ import { env } from '../../src/config/env.js';
 import { all, exec } from '../../src/db/mysql.js';
 import { seed } from '../../scripts/seed/08-admin-business.js';
 import { migrate } from '../../scripts/migrate-from-mysql.js';
-import { C, EMBEDDED, TABLE_COLLECTION, col, toRow, type EmbeddedTable, type Row } from '../../src/db/mongo.js';
-import { phpJsonEncode } from '../../src/services/firebase.js';
+import { C, EMBEDDED, TABLE_COLLECTION, col } from '../../scripts/lib/raw-collections.js';
+import { toRow, type EmbeddedTable, type Row } from '../../src/db/mongo.js';
+import { phpJsonEncode } from '../../src/services/firebase.service.js';
 
 export const TEST_PREFIX = 'Parity Delta';
 

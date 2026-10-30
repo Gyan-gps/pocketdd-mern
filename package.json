@@ -3,9 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch --env-file-if-exists=.env src/index.ts",
+    "dev": "tsx watch --env-file-if-exists=.env src/server.ts",
     "build": "tsc",
-    "start": "node --env-file-if-exists=.env dist/index.js",
+    "start": "node --env-file-if-exists=.env dist/server.js",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test test/*.test.ts",
     "migrate": "tsx --env-file-if-exists=.env scripts/migrate-from-mysql.ts",
@@ -15,7 +15,8 @@
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "express": "^4.21.2",
-    "mongodb": "^6.21.0",
+    "mongodb": "^6.20.0",
+    "mongoose": "^8.24.7",
     "multer": "^2.0.2",
     "mysql2": "^3.11.5"
   },

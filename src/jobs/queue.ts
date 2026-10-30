@@ -6,7 +6,8 @@
 //   - a reservation older than retry_after is re-run; once attempts > tries it fails with
 //     MaxAttemptsExceededException, like Laravel.
 import { randomUUID } from 'node:crypto';
-import { C, col, insertRow, toRows } from '../db/mongo.js';
+import { insertRow, toRows, type Row } from '../db/mongo.js';
+import { QueueJob } from '../models/index.js';
 import { nowDb } from '../core/time.js';
 import { SendAdvertisementNotification } from './send-advertisement-notification.js';
 import { SendBusinessApproveNotification } from './send-business-approve-notification.js';
@@ -37,7 +38,7 @@ const unix = () => Math.floor(Date.now() / 1000);
 export async function dispatchJob(name: JobName, ...args: unknown[]): Promise<number> {
   if (!JOBS[name]) throw new Error(`Unknown job ${name}`);
   const now = unix();
-  return insertRow(C.jobs, {
+  return insertRow(QueueJob.collection.collectionName, {
     uuid: randomUUID(),
     queue: queueName(),
     job: name,
@@ -59,16 +60,16 @@ interface JobRow {
   attempts: number;
 }
 
-function exceptionText(e: unknown): string {
-  const err = e instanceof Error ? e : new Error(String(e));
-  const cls = (err as { exceptionClass?: string }).exceptionClass ?? err.name;
-  return `${cls}: ${err.message}\n${err.stack ?? ''}`;
+function exceptionText(error: unknown): string {
+  const err = error instanceof Error ? error : new Error(String(error));
+  const exceptionClass = (err as { exceptionClass?: string }).exceptionClass ?? err.name;
+  return `${exceptionClass}: ${err.message}\n${err.stack ?? ''}`;
 }
 
-async function markFailed(row: JobRow, e: unknown) {
-  await col(C.jobs).updateOne(
-    { _id: row.id as never },
-    { $set: { failed_at: nowDb(), exception: exceptionText(e), reserved_at: null, reserved_by: null } },
+async function markFailed(row: JobRow, error: unknown) {
+  await QueueJob.updateOne(
+    { _id: row.id },
+    { $set: { failed_at: nowDb(), exception: exceptionText(error), reserved_at: null, reserved_by: null } },
   );
 }
 
@@ -77,7 +78,7 @@ export async function workOnce(): Promise<boolean> {
   const token = randomUUID();
   const now = unix();
   // Atomic reservation: only one worker can flip reserved_at/reserved_by on a given job.
-  const doc = await col(C.jobs).findOneAndUpdate(
+  const reserved = await QueueJob.findOneAndUpdate(
     {
       failed_at: null,
       queue: queueName(),
@@ -86,14 +87,14 @@ export async function workOnce(): Promise<boolean> {
     },
     { $set: { reserved_at: now, reserved_by: token }, $inc: { attempts: 1 } },
     { sort: { _id: 1 }, returnDocument: 'after' },
-  );
-  if (!doc) return false;
-  const row: JobRow = { id: doc._id as unknown as number, job: doc.job, args: doc.args, attempts: doc.attempts };
+  ).lean<Row>();
+  if (!reserved) return false;
+  const row: JobRow = { id: reserved._id, job: reserved.job, args: reserved.args, attempts: reserved.attempts };
 
   if (row.attempts > TRIES) {
-    const e = new Error(`App\\Jobs\\${row.job} has been attempted too many times.`);
-    (e as { exceptionClass?: string }).exceptionClass = 'Illuminate\\Queue\\MaxAttemptsExceededException';
-    await markFailed(row, e);
+    const error = new Error(`App\\Jobs\\${row.job} has been attempted too many times.`);
+    (error as { exceptionClass?: string }).exceptionClass = 'Illuminate\\Queue\\MaxAttemptsExceededException';
+    await markFailed(row, error);
     return true;
   }
 
@@ -102,14 +103,14 @@ export async function workOnce(): Promise<boolean> {
     if (!handler) throw new Error(`Unknown job ${row.job}`);
     const args = typeof row.args === 'string' ? JSON.parse(row.args) : row.args;
     await handler(...(args as unknown[]));
-    await col(C.jobs).deleteOne({ _id: row.id as never });
-  } catch (e) {
+    await QueueJob.deleteOne({ _id: row.id });
+  } catch (error) {
     if (row.attempts >= TRIES) {
-      await markFailed(row, e);
+      await markFailed(row, error);
     } else {
       // release($backoff)
-      await col(C.jobs).updateOne(
-        { _id: row.id as never },
+      await QueueJob.updateOne(
+        { _id: row.id },
         { $set: { reserved_at: null, reserved_by: null, available_at: unix() + BACKOFF } },
       );
     }
@@ -119,9 +120,9 @@ export async function workOnce(): Promise<boolean> {
 
 /** Drain the queue (tests / manual runs). */
 export async function workUntilEmpty(): Promise<number> {
-  let n = 0;
-  while (await workOnce()) n++;
-  return n;
+  let processed = 0;
+  while (await workOnce()) processed++;
+  return processed;
 }
 
 let timer: NodeJS.Timeout | null = null;
@@ -133,8 +134,8 @@ export function startQueueWorker(sleepMs = 3000) {
       while (await workOnce()) {
         /* keep draining */
       }
-    } catch (e) {
-      Log.error('Queue worker error', { message: e instanceof Error ? e.message : String(e) });
+    } catch (error) {
+      Log.error('Queue worker error', { message: error instanceof Error ? error.message : String(error) });
     }
     timer = setTimeout(loop, sleepMs);
   };
@@ -147,4 +148,4 @@ export function stopQueueWorker() {
 }
 
 /** `php artisan queue:failed` equivalent helper. */
-export const failedJobs = async () => toRows(await col(C.jobs).find({ failed_at: { $ne: null } }).sort({ _id: 1 }).toArray());
+export const failedJobs = async () => toRows(await QueueJob.find({ failed_at: { $ne: null } }).sort({ _id: 1 }).lean());

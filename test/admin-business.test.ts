@@ -10,7 +10,7 @@ import { after, before, beforeEach, describe, it } from 'node:test';
 process.env.NODE_QUEUE = 'admin-business-test';
 const { app } = await import('../src/app.js');
 const { pool } = await import('../src/db/mysql.js');
-const { C, closeMongo, col } = await import('../src/db/mongo.js');
+const { C, closeMongo, col } = await import('../scripts/lib/raw-collections.js');
 const { hashCheck } = await import('../src/core/auth/hash.js');
 const { nowDb } = await import('../src/core/time.js');
 const { ADMIN_TEST_EMAIL, ADMIN_TEST_PASSWORD } = await import('../scripts/seed/07-admin-auth.js');

@@ -1,7 +1,8 @@
 // Shared Eloquent/Backpack behaviour for the directory admin screens
 // (administrator, designation, city-helpline-number, address, about-us, pincode). Storage is MongoDB.
 import type { Request } from 'express';
-import { C, col, escapeRegex, type Filter, type Row } from '../../db/mongo.js';
+import { escapeRegex, type Filter, type Row } from '../../db/mongo.js';
+import { Pincode, modelFor } from '../../models/index.js';
 import { phpJsonDecodeAssoc } from '../../utils/php/values.js';
 import { phpEmpty } from '../../utils/php/compat.js';
 import { phpJsonEncode, phpStrictEqual } from '../../utils/php/json.js';
@@ -19,10 +20,10 @@ export type FormOpts = Record<string, Array<{ value: string; label: string }>>;
  * rules (`name.*.sub`) see the array, as they do in PHP.
  */
 export function decodeRepeatableInput(req: Request, name: string): void {
-  const v = req.input[name];
-  if (typeof v !== 'string') return;
+  const value = req.input[name];
+  if (typeof value !== 'string') return;
   try {
-    const parsed = JSON.parse(v);
+    const parsed = JSON.parse(value);
     if (parsed && typeof parsed === 'object') req.input[name] = clean(parsed);
   } catch {
     /* left as the raw string, like PHP */
@@ -30,28 +31,30 @@ export function decodeRepeatableInput(req: Request, name: string): void {
 }
 
 /** TrimStrings + ConvertEmptyStringsToNull applied to nested repeatable values. */
-function clean(v: unknown): unknown {
-  if (typeof v === 'string') {
-    const t = v.trim();
-    return t === '' ? null : t;
+function clean(value: unknown): unknown {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed === '' ? null : trimmed;
   }
-  if (Array.isArray(v)) return v.map(clean);
-  if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, clean(x)]));
-  return v;
+  if (Array.isArray(value)) return value.map(clean);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, nested]) => [key, clean(nested)]));
+  }
+  return value;
 }
 
 /**
  * `json_decode($v, true)` of a JSON column. Values are stored natively now, so a native value is decoded as if it
  * were the stored text (sequential-key objects become lists); a string is the raw text, as before.
  */
-export function decodeAssoc(v: unknown): unknown {
-  if (v === null || v === undefined) return null;
-  return phpJsonDecodeAssoc(typeof v === 'string' ? v : JSON.stringify(v));
+export function decodeAssoc(value: unknown): unknown {
+  if (value === null || value === undefined) return null;
+  return phpJsonDecodeAssoc(typeof value === 'string' ? value : JSON.stringify(value));
 }
 
 /** The raw column text the SQL row had for a JSON column (PHP json_encode); strings and NULL pass through. */
-export function rawJson(v: unknown): unknown {
-  return v === null || v === undefined || typeof v === 'string' ? (v ?? null) : phpJsonEncode(v);
+export function rawJson(value: unknown): unknown {
+  return value === null || value === undefined || typeof value === 'string' ? (value ?? null) : phpJsonEncode(value);
 }
 
 /**
@@ -85,34 +88,33 @@ export function keepIfJsonEquivalent(existing: Row, key: string, next: unknown):
 /** `PinCode::find($id)->pin_code ?? ''` (`'-'` when the id is empty). */
 export async function pinCodeColumn(pincodeId: unknown): Promise<string> {
   if (phpEmpty(pincodeId)) return '-';
-  const p = await findById(C.pincodes, pincodeId, { pin_code: 1 });
-  return (p?.pin_code as string | null | undefined) ?? '';
+  const pincode = await findById(Pincode.collection.collectionName, pincodeId, { pin_code: 1 });
+  return (pincode?.pin_code as string | null | undefined) ?? '';
 }
 
 /** `PinCode::groupBy('state')->orderBy('state', 'ASC')->pluck('state', 'state')` (form dropdown). */
 export async function stateOptions(): Promise<Array<{ value: string; label: string }>> {
   // ONLY_FULL_GROUP_BY is off in Laravel's mysql config (strict => true but modes exclude it): grouping by state.
-  return pluckSame(await groupValues(C.pincodes, 'state', { order: 'asc' }), 'state');
+  return pluckSame(await groupValues(Pincode.collection.collectionName, 'state', { order: 'asc' }), 'state');
 }
 
 /** `EXISTS (SELECT * FROM pincodes WHERE x.pincode_id = pincodes.id AND pin_code LIKE %term%)` as a filter on `pincode_id`. */
 export async function pinCodeIdsLike(term: string): Promise<Filter<Row>> {
-  const pins = await col(C.pincodes)
-    .find(
-      { $expr: { $regexMatch: { input: { $toString: '$pin_code' }, regex: escapeRegex(term), options: 'i' } } },
-      { projection: { _id: 1 } },
-    )
-    .toArray();
-  return pins.length ? { pincode_id: { $in: pins.map((p) => p._id) } } : NEVER;
+  const pincodes = await Pincode.find(
+    { $expr: { $regexMatch: { input: { $toString: '$pin_code' }, regex: escapeRegex(term), options: 'i' } } },
+    { _id: 1 },
+  ).lean<Row[]>();
+  return pincodes.length ? { pincode_id: { $in: pincodes.map((pincode) => pincode._id) } } : NEVER;
 }
 
 /** `column LIKE '%term%'` on the raw JSON text of a JSON column (the engine's search cannot cast arrays to text). */
 export async function jsonColumnLike(collection: string, field: string, term: string): Promise<Filter<Row>> {
   const needle = term.toLowerCase();
-  const docs = await col(collection)
-    .find({ [field]: { $ne: null } } as never, { projection: { [field]: 1 } })
-    .toArray();
-  const ids = docs.filter((d) => String(rawJson(d[field])).toLowerCase().includes(needle)).map((d) => d._id);
+  const rows = await modelFor(collection)
+    .find({ [field]: { $ne: null } } as never, { [field]: 1 })
+    .lean<Row[]>();
+  const ids = rows.filter((row) => String(rawJson(row[field])).toLowerCase().includes(needle)).map((row) => row._id);
+
   return ids.length ? { id: { $in: ids } } : NEVER;
 }
 

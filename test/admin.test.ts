@@ -2,7 +2,8 @@
 // Talks only to Node, so fixtures are read/written in MongoDB (seeded in MySQL, copied by migrate-from-mysql).
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
-import { C, closeMongo, col, toRow } from '../src/db/mongo.js';
+import { C, closeMongo, col } from '../scripts/lib/raw-collections.js';
+import { toRow } from '../src/db/mongo.js';
 import { ADMIN_TEST_EMAIL, ADMIN_TEST_PASSWORD } from '../scripts/seed/07-admin-auth.js';
 
 const BASE = process.env.NODE_URL ?? 'http://localhost:4000';

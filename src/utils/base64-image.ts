@@ -13,8 +13,8 @@ const STREAM_ERRORS: Record<string, string> = {
 };
 
 /** PHP base64_decode() (non-strict): characters outside the alphabet are skipped. */
-function phpBase64Decode(s: string): Buffer {
-  return Buffer.from(s.replace(/[^A-Za-z0-9+/]/g, ''), 'base64');
+function phpBase64Decode(encoded: string): Buffer {
+  return Buffer.from(encoded.replace(/[^A-Za-z0-9+/]/g, ''), 'base64');
 }
 
 /**
@@ -36,8 +36,8 @@ export function createImageFromBase64(base64: unknown, folder: string, opts: { m
   const data = phpBase64Decode(parts[1]!);
   try {
     fs.writeFileSync(destination, data);
-  } catch (e) {
-    const code = (e as NodeJS.ErrnoException).code ?? '';
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code ?? '';
     throw new Error(`file_put_contents(${destination}): Failed to open stream: ${STREAM_ERRORS[code] ?? 'Operation failed'}`);
   }
   return `uploads/${folder}/${name}`;

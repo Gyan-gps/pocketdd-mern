@@ -8,7 +8,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { env } from '../config/env.js';
-import { strRandom } from '../core/auth/sanctum.js';
+import { strRandom } from '../core/auth/access-tokens.js';
 import { isUploadedFile, strSlug, type UploadedFileLike } from '../utils/php/values.js';
 
 const MIME_EXT: Record<string, string> = {
@@ -24,31 +24,31 @@ const MIME_EXT: Record<string, string> = {
 
 /** `UploadedFile::extension()` — content sniffing for the common types, client MIME as fallback. */
 export function guessExtension(file: UploadedFileLike): string {
-  const b = file.buffer ?? Buffer.alloc(0);
-  if (b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'png';
-  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'jpg';
-  if (b.subarray(0, 4).toString('latin1') === 'GIF8') return 'gif';
-  if (b.subarray(0, 4).toString('latin1') === 'RIFF' && b.subarray(8, 12).toString('latin1') === 'WEBP') return 'webp';
-  if (b.subarray(0, 2).toString('latin1') === 'BM') return 'bmp';
-  if (b.subarray(0, 5).toString('latin1') === '%PDF-') return 'pdf';
-  const head = b.subarray(0, 512).toString('utf8');
+  const bytes = file.buffer ?? Buffer.alloc(0);
+  if (bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'png';
+  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'jpg';
+  if (bytes.subarray(0, 4).toString('latin1') === 'GIF8') return 'gif';
+  if (bytes.subarray(0, 4).toString('latin1') === 'RIFF' && bytes.subarray(8, 12).toString('latin1') === 'WEBP') return 'webp';
+  if (bytes.subarray(0, 2).toString('latin1') === 'BM') return 'bmp';
+  if (bytes.subarray(0, 5).toString('latin1') === '%PDF-') return 'pdf';
+  const head = bytes.subarray(0, 512).toString('utf8');
   if (/<svg[\s>]/i.test(head)) return 'svg';
-  if (b.length && !b.subarray(0, 512).includes(0)) return 'txt';
+  if (bytes.length && !bytes.subarray(0, 512).includes(0)) return 'txt';
   return MIME_EXT[file.mimetype] ?? '';
 }
 
 /** FileNameGenerator::getName(). */
 export function backpackFileName(file: UploadedFileLike): string {
-  const orig = file.originalname;
-  const base = orig.includes('.') ? orig.slice(0, orig.lastIndexOf('.')) : orig;
+  const originalName = file.originalname;
+  const base = originalName.includes('.') ? originalName.slice(0, originalName.lastIndexOf('.')) : originalName;
   return `${strSlug(base)}-${strRandom(4)}.${guessExtension(file)}`;
 }
 
 /** Storage::disk('public_path')->delete($path) — missing files are ignored. */
-export function deletePublicFile(rel: unknown): void {
-  if (typeof rel !== 'string' || rel === '') return;
+export function deletePublicFile(relativePath: unknown): void {
+  if (typeof relativePath !== 'string' || relativePath === '') return;
   try {
-    fs.unlinkSync(path.posix.join(env.publicPath, rel));
+    fs.unlinkSync(path.posix.join(env.publicPath, relativePath));
   } catch {
     /* Flysystem local delete of a missing file is a no-op */
   }
@@ -70,9 +70,9 @@ export function applySingleUpload(
   if (isUploadedFile(value) && value.size > 0) {
     deletePublicFile(previous);
     const name = backpackFileName(value);
-    const abs = path.posix.join(env.publicPath, folder);
-    fs.mkdirSync(abs, { recursive: true });
-    fs.writeFileSync(abs + name, value.buffer ?? Buffer.alloc(0));
+    const absoluteFolder = path.posix.join(env.publicPath, folder);
+    fs.mkdirSync(absoluteFolder, { recursive: true });
+    fs.writeFileSync(absoluteFolder + name, value.buffer ?? Buffer.alloc(0));
     data[field] = folder + name;
     return;
   }

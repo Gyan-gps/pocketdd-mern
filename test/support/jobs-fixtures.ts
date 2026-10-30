@@ -5,8 +5,9 @@ import { writeFileSync } from 'node:fs';
 import { all, exec, pool } from '../../src/db/mysql.js';
 import { seed } from '../../scripts/seed/06-jobs.js';
 import { migrate } from '../../scripts/migrate-from-mysql.js';
-import { C, closeMongo, col, toDoc, toRows, TABLE_COLLECTION } from '../../src/db/mongo.js';
-import { type HttpRequest, setFcmTransport, clearFcmTokenCache, phpJsonEncode } from '../../src/services/firebase.js';
+import { C, closeMongo, col, TABLE_COLLECTION } from '../../scripts/lib/raw-collections.js';
+import { toDoc, toRows } from '../../src/db/mongo.js';
+import { type HttpRequest, setFcmTransport, clearFcmTokenCache, phpJsonEncode } from '../../src/services/firebase.service.js';
 
 export const JOB_TEST_USERS = [700, 701, 702, 703];
 

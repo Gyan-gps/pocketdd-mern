@@ -20,7 +20,7 @@ function write(level: Level, message: string, context: unknown = {}) {
 }
 
 export const Log = {
-  info: (m: string, c?: unknown) => write('INFO', m, c),
-  warning: (m: string, c?: unknown) => write('WARNING', m, c),
-  error: (m: string, c?: unknown) => write('ERROR', m, c),
+  info: (message: string, context?: unknown) => write('INFO', message, context),
+  warning: (message: string, context?: unknown) => write('WARNING', message, context),
+  error: (message: string, context?: unknown) => write('ERROR', message, context),
 };

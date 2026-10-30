@@ -2,7 +2,9 @@
 // (+ AddressRequest, public/assets/js/get_address_city.js + address_city_counter.js, views/address/*).
 // Operations: List, Create, Update, Show. Model: Address ($casts area => array, getAreaDisplay(),
 // getAreaHiDisplay()). setupUpdateOperation() sets no validation: updates are not validated.
-import { C, type Row } from '../../db/mongo.js';
+import type { Row } from '../../db/mongo.js';
+import { Address, Pincode } from '../../models/index.js';
+import { createAddressValidation, updateAddressValidation } from '../../validators/admin/address.validator.js';
 import type { CrudConfig } from '../crud.js';
 import { coerceRow, findById, newRow, storeCoerced, eqFilter } from '../support/catalog-helpers.js';
 import {
@@ -17,22 +19,12 @@ import {
   type FormOpts,
 } from '../support/directory-helpers.js';
 
-const MESSAGES = {
-  'state.required': 'Please select a state.',
-  'city.required': 'Please select a city.',
-  'pincode_id.required': 'Please select a pincode.',
-  'tehsil.required': 'The tehsil field is required.',
-  'tehsil_hi.required': 'तहसील फ़ील्ड आवश्यक है.',
-  'area.*.area_name.required': 'Each area must have a name.',
-  'area.*.area_name_hi.required': 'प्रत्येक क्षेत्र का एक नाम होना चाहिए.',
-};
-
 /** collect($area)->pluck($key)->implode(', ') — collect(null) is empty, a scalar is a one-item list. */
 function pluckImplode(area: unknown, key: string): string {
   const items = area === null || area === undefined ? [] : typeof area === 'object' ? Object.values(area as object) : [area];
   return items
-    .map((i) => (i && typeof i === 'object' && !Array.isArray(i) ? (i as Record<string, unknown>)[key] : null))
-    .map((v) => (v === null || v === undefined || v === false ? '' : v === true ? '1' : String(v)))
+    .map((item) => (item && typeof item === 'object' && !Array.isArray(item) ? (item as Record<string, unknown>)[key] : null))
+    .map((value) => (value === null || value === undefined || value === false ? '' : value === true ? '1' : String(value)))
     .join(', ');
 }
 
@@ -49,19 +41,19 @@ export const address: CrudConfig = {
     searchExtra: (term) => pinCodeIdsLike(term),
     sortable: ['state', 'city', 'tehsil', 'tehsil_hi'],
     orderBy: [['id', 'desc']],
-    filters: async (q) => {
-      const where = [...eqFilter(q, 'state')];
-      const pin = q.pincode_id;
-      if (pin !== undefined && pin !== null && pin !== '') where.unshift(await pinCodeIdsLike(String(pin)));
+    filters: async (input) => {
+      const where = [...eqFilter(input, 'state')];
+      const pinCode = input.pincode_id;
+      if (pinCode !== undefined && pinCode !== null && pinCode !== '') where.unshift(await pinCodeIdsLike(String(pinCode)));
       return { where };
     },
     filterOptions: async () => ({ state: await stateOptions() }),
   },
   formOptions: async (_req, id): Promise<FormOpts> => {
     if (!id) return { state: await stateOptions() };
-    const entry = await findById(C.addresses, id, { pincode_id: 1 });
-    const pin = entry?.pincode_id ? await findById(C.pincodes, entry.pincode_id, { pin_code: 1 }) : null;
-    return { pincode_id: pin ? [{ value: String(pin.id), label: String(pin.pin_code ?? '') }] : [] };
+    const entry = await findById(Address.collection.collectionName, id, { pincode_id: 1 });
+    const pincode = entry?.pincode_id ? await findById(Pincode.collection.collectionName, entry.pincode_id, { pin_code: 1 }) : null;
+    return { pincode_id: pincode ? [{ value: String(pincode.id), label: String(pincode.pin_code ?? '') }] : [] };
   },
   fields: {
     create: ['state', 'city', 'pincode_id', 'tehsil', 'tehsil_hi', 'area'],
@@ -72,37 +64,29 @@ export const address: CrudConfig = {
     create: {
       rules: (req) => {
         decodeRepeatableInput(req, 'area');
-        return {
-          state: 'required',
-          city: 'required',
-          pincode_id: 'required',
-          tehsil: 'required',
-          tehsil_hi: 'required',
-          'area.*.area_name': 'required',
-          'area.*.area_name_hi': 'required',
-        };
+        return { ...createAddressValidation.rules };
       },
-      messages: MESSAGES,
+      messages: createAddressValidation.messages,
     },
     update: {
       // no CRUD::setValidation() in setupUpdateOperation(): nothing is validated.
       rules: (req) => {
         decodeRepeatableInput(req, 'area');
-        return {};
+        return { ...updateAddressValidation.rules };
       },
     },
   },
   serialize: async (row: Row) => {
     const area = areaCast(row.area);
-    const pin = row.pincode_id ? await findById(C.pincodes, row.pincode_id, { pin_code: 1 }) : null;
+    const pincode = row.pincode_id ? await findById(Pincode.collection.collectionName, row.pincode_id, { pin_code: 1 }) : null;
     return {
       ...row,
       area,
       area_hi: rawJson(row.area_hi),
       // optional(PinCode::find($entry->pincode_id))->pin_code ?? '-'
-      pincode: pin?.pin_code ?? '-',
+      pincode: pincode?.pin_code ?? '-',
       // show view: optional($entry->pinCode)->pin_code
-      pin_code: pin ? (pin.pin_code ?? null) : null,
+      pin_code: pincode ? (pincode.pin_code ?? null) : null,
       area_display: pluckImplode(area, 'area_name'),
       area_hi_display: area !== null && typeof area === 'object' ? pluckImplode(area, 'area_name_hi') : 'N/A',
     };
@@ -114,9 +98,10 @@ export const address: CrudConfig = {
     },
     beforeUpdate: async (data, existing) => {
       if ('area' in data) data.area = keepIfJsonEquivalent(existing, 'area', jsonCastWrite(data.area));
-      const out = await onlyColumns('addresses', data);
-      coerceRow('addresses', out);
-      return out;
+      const row = await onlyColumns('addresses', data);
+      coerceRow('addresses', row);
+      return row;
+
     },
     afterUpdate: (id, data) => storeCoerced('addresses', id, data),
   },

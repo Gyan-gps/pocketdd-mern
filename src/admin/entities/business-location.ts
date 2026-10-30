@@ -1,7 +1,7 @@
 // Port of App\Http\Controllers\Admin\BusinessLocationCrudController (+ BusinessLocation(Update)Request: no rules).
 // Operations: List, Create, Update, Show. store() → redirect business-detail/create; update() → redirect business.
 import type { CrudConfig } from '../crud.js';
-import { C } from '../../db/mongo.js';
+import { Business, Location } from '../../models/index.js';
 import { coerceRow, fieldById, idOptions, looseInt, newRow } from './business-columns.js';
 
 export const businessLocation: CrudConfig = {
@@ -15,20 +15,20 @@ export const businessLocation: CrudConfig = {
     filters: (input) => (input.business_id ? { where: [{ business_id: looseInt(input.business_id) }] } : {}),
     filterOptions: async () => ({
       // Business::where('status','1')->distinct('name')->pluck('name','id')
-      business_id: await idOptions(C.businesses, { status: 1 }, 'name'),
+      business_id: await idOptions(Business, { status: 1 }, 'name'),
     }),
   },
   fields: { create: ['business_id', 'location_id'], update: ['business_id', 'location_id'] },
   redirect: { create: 'business-detail/create', update: 'business' },
   // `relationship` fields (ajax false): every Business (attribute name) / Location (attribute location_name).
   formOptions: async () => ({
-    business_id: await idOptions(C.businesses, {}, 'name'),
-    location_id: await idOptions(C.locations, {}, 'location_name'),
+    business_id: await idOptions(Business, {}, 'name'),
+    location_id: await idOptions(Location, {}, 'location_name'),
   }),
   serialize: async (row) => {
-    const b = await fieldById(C.businesses, row.business_id, 'name');
-    const l = await fieldById(C.locations, row.location_id, 'location_name');
-    return { ...row, business_name: b ? b.v : null, location_name: l ? l.v : null };
+    const business = await fieldById(Business, row.business_id, 'name');
+    const location = await fieldById(Location, row.location_id, 'location_name');
+    return { ...row, business_name: business ? business.value : null, location_name: location ? location.value : null };
   },
   hooks: {
     beforeCreate: (data) => newRow('business_locations', data),

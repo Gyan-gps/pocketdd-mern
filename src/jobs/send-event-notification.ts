@@ -1,11 +1,11 @@
 // Port of App\Jobs\SendEventNotification.
 import { nowDb } from '../core/time.js';
-import { FirebaseService } from '../services/firebase.js';
+import { FirebaseService } from '../services/firebase.service.js';
 import { errorContext, find, insertNotifications, jobUrl, phpJsonEncode, usersWithToken } from './job-helpers.js';
 import { Log } from '../core/logging/log.js';
 
-const phpEmpty = (v: unknown) =>
-  v === null || v === undefined || v === false || v === 0 || v === '' || v === '0' || (Array.isArray(v) && !v.length);
+const phpEmpty = (value: unknown) =>
+  value === null || value === undefined || value === false || value === 0 || value === '' || value === '0' || (Array.isArray(value) && !value.length);
 
 export async function SendEventNotification(
   eventId: unknown,
@@ -25,7 +25,7 @@ export async function SendEventNotification(
   if (users.length > 0) {
     try {
       const firebase = new FirebaseService();
-      const tokens = users.map((u) => u.fcm_token);
+      const tokens = users.map((user) => user.fcm_token);
       const title = '🎉 New Event';
       // Laravel quirk: $message stays null when the name is null and there is no description.
       let message = eventName as string | null;
@@ -49,9 +49,9 @@ export async function SendEventNotification(
       }));
       await insertNotifications(notifications);
       Log.info('Event notifications saved.', { count: notifications.length });
-    } catch (e) {
-      Log.error('SendEventNotification Failed.', { event_id: eventId, ...errorContext(e) });
-      throw e;
+    } catch (error) {
+      Log.error('SendEventNotification Failed.', { event_id: eventId, ...errorContext(error) });
+      throw error;
     }
   } else {
     Log.info('Skipping Firebase/DB logic because user count is 0.');

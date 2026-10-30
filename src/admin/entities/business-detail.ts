@@ -12,7 +12,9 @@
 import { Router } from 'express';
 import type { CrudConfig } from '../crud.js';
 import { adminAuth } from '../auth.js';
-import { C, col, intId } from '../../db/mongo.js';
+import { intId, type Row } from '../../db/mongo.js';
+import { Business, BusinessCategory, BusinessSubCategory } from '../../models/index.js';
+import { businessDetailValidation } from '../../validators/admin/business-detail.validator.js';
 import { fetchPincodes } from '../support/business-helpers.js';
 import { coerceRow, fieldById, idOptions, looseInt, newRow } from './business-columns.js';
 
@@ -31,14 +33,13 @@ const FIELDS = [
   'description',
   'summaries',
 ];
-const RULES = { business_id: 'required', business_email: 'required|email', business_mobile_number: 'required|digits:10' };
 const TRANSLATABLE = ['description', 'summaries'];
 
 /** Spatie HasTranslations::setTranslation($key, 'en', $value) → json_encode(..., UNESCAPED_UNICODE|SLASHES). */
 function translate(data: Record<string, unknown>, existing: Record<string, unknown> | null) {
-  const out = { ...data };
+  const translated = { ...data };
   for (const key of TRANSLATABLE) {
-    if (!(key in out)) continue;
+    if (!(key in translated)) continue;
     let translations: Record<string, unknown> = {};
     const raw = existing?.[key];
     if (typeof raw === 'string') {
@@ -49,10 +50,10 @@ function translate(data: Record<string, unknown>, existing: Record<string, unkno
         /* non-JSON legacy value → replaced */
       }
     }
-    translations.en = out[key] ?? null;
-    out[key] = JSON.stringify(translations);
+    translations.en = translated[key] ?? null;
+    translated[key] = JSON.stringify(translations);
   }
-  return out;
+  return translated;
 }
 
 export const businessDetail: CrudConfig = {
@@ -71,41 +72,47 @@ export const businessDetail: CrudConfig = {
       return { where: input.business_id ? [{ business_id: looseInt(input.business_id) }] : [] };
     },
     filterOptions: async () => ({
-      business_id: await idOptions(C.businesses, { status: 1 }, 'name'),
-      business_category__id: await idOptions(C.businessCategories, { status: 1 }, 'name'),
-      business_sub_category_id: await idOptions(C.businessSubCategories, { status: 1 }, 'name'),
+      business_id: await idOptions(Business, { status: 1 }, 'name'),
+      business_category__id: await idOptions(BusinessCategory, { status: 1 }, 'name'),
+      business_sub_category_id: await idOptions(BusinessSubCategory, { status: 1 }, 'name'),
     }),
   },
   fields: { create: FIELDS, update: FIELDS },
-  validation: { create: { rules: RULES }, update: { rules: RULES } },
+  validation: { create: businessDetailValidation, update: businessDetailValidation },
   redirect: { create: 'business', update: 'business' },
   formOptions: async (_req, id) => {
     if (!id) {
-      return { business_id: await idOptions(C.businesses, { 'details.0': { $exists: false } }, 'name', { _id: -1 }) };
+      return { business_id: await idOptions(Business, { 'details.0': { $exists: false } }, 'name', { _id: -1 }) };
     }
     // `business_id <> NULL` (unknown detail id) matches nothing → every business.
-    const n = intId(id);
-    const owner = n === null ? null : await col(C.businesses).findOne({ 'details.id': n }, { projection: { _id: 1 } });
+    const detailId = intId(id);
+    const owner = detailId === null ? null : await Business.findOne({ 'details.id': detailId }, { _id: 1 }).lean<Row>();
     return {
-      business_id: await idOptions(C.businesses, owner ? { $or: [{ 'details.0': { $exists: false } }, { _id: owner._id }] } : {}, 'name'),
+      business_id: await idOptions(Business, owner ? { $or: [{ 'details.0': { $exists: false } }, { _id: owner._id }] } : {}, 'name'),
     };
   },
-  routes: (r) => {
-    r.post('/fetch/pincode', (req, res, next) => fetchPincodes(req, res).catch(next));
+  routes: (router) => {
+    router.post('/fetch/pincode', (req, res, next) => fetchPincodes(req, res).catch(next));
   },
   serialize: async (row) => {
-    const b = await fieldById(C.businesses, row.business_id, 'name');
+    const business = await fieldById(Business, row.business_id, 'name');
     // Translatable attributes read in the current locale (en, falling back to the raw value), like the edit form.
-    const en = (v: unknown) => {
-      if (typeof v !== 'string') return v ?? null;
+    const english = (value: unknown) => {
+      if (typeof value !== 'string') return value ?? null;
       try {
-        const p = JSON.parse(v);
-        return p && typeof p === 'object' && !Array.isArray(p) ? (p.en ?? null) : v;
+        const parsed = JSON.parse(value);
+        return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed.en ?? null) : value;
       } catch {
-        return v;
+        return value;
       }
     };
-    return { ...row, description: en(row.description), summaries: en(row.summaries), business_name: b ? b.v : null };
+    return {
+      ...row,
+      description: english(row.description),
+      summaries: english(row.summaries),
+      business_name: business ? business.value : null,
+    };
+
   },
   hooks: {
     beforeCreate: (data) => newRow('business_details', translate(data, null)),

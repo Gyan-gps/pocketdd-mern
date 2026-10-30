@@ -4,7 +4,7 @@
 
 const NON_ASCII = /[\u0080-\uffff]/g;
 const LINE_TERMINATORS = /[\u2028\u2029]/g;
-const hex4 = (c: string) => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0');
+const hex4 = (char: string) => '\\u' + char.charCodeAt(0).toString(16).padStart(4, '0');
 
 export interface PhpJsonFlags {
   /** JSON_UNESCAPED_UNICODE */
@@ -14,19 +14,19 @@ export interface PhpJsonFlags {
 }
 
 export function phpJsonEncode(value: unknown, flags: PhpJsonFlags = {}): string {
-  let s = JSON.stringify(value === undefined ? null : value) ?? 'null';
-  if (!flags.unescapedSlashes) s = s.replace(/\//g, '\\/');
+  let json = JSON.stringify(value === undefined ? null : value) ?? 'null';
+  if (!flags.unescapedSlashes) json = json.replace(/\//g, '\\/');
   // PHP escapes U+2028/U+2029 even with JSON_UNESCAPED_UNICODE (unless JSON_UNESCAPED_LINE_TERMINATORS).
-  s = flags.unescapedUnicode ? s.replace(LINE_TERMINATORS, hex4) : s.replace(NON_ASCII, hex4);
-  return s;
+  json = flags.unescapedUnicode ? json.replace(LINE_TERMINATORS, hex4) : json.replace(NON_ASCII, hex4);
+  return json;
 }
 
 /** PHP `===` between two json_decode($x, true) results (arrays compare key order + strict values). */
-export function phpStrictEqual(a: unknown, b: unknown): boolean {
-  if (a === b) return true;
-  if (a === null || b === null || typeof a !== 'object' || typeof b !== 'object') return false;
-  const ea = Array.isArray(a) ? a.map((v, i) => [String(i), v] as const) : Object.entries(a as object);
-  const eb = Array.isArray(b) ? b.map((v, i) => [String(i), v] as const) : Object.entries(b as object);
-  if (ea.length !== eb.length) return false;
-  return ea.every(([k, v], i) => eb[i]![0] === k && phpStrictEqual(v, eb[i]![1]));
+export function phpStrictEqual(left: unknown, right: unknown): boolean {
+  if (left === right) return true;
+  if (left === null || right === null || typeof left !== 'object' || typeof right !== 'object') return false;
+  const leftEntries = Array.isArray(left) ? left.map((v, i) => [String(i), v] as const) : Object.entries(left as object);
+  const rightEntries = Array.isArray(right) ? right.map((v, i) => [String(i), v] as const) : Object.entries(right as object);
+  if (leftEntries.length !== rightEntries.length) return false;
+  return leftEntries.every(([k, v], i) => rightEntries[i]![0] === k && phpStrictEqual(v, rightEntries[i]![1]));
 }

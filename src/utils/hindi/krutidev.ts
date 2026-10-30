@@ -2,59 +2,59 @@
 import { KD_MATRAS, KD_ONE, KD_SPECIAL, KD_TWO } from './krutidev-tables.js';
 import { phpTrim } from '../php/values.js';
 
-const replaceAll = (s: string, from: string, to: string) => (from === '' ? s : s.split(from).join(to));
+const replaceAll = (text: string, from: string, to: string) => (from === '' ? text : text.split(from).join(to));
 
 // mb_* helpers over code points.
-const cps = (s: string) => Array.from(s);
-const mbStrpos = (s: string, needle: string, offset = 0): number | false => {
-  const arr = cps(s);
-  const n = cps(needle);
-  for (let i = offset; i + n.length <= arr.length; i++) {
-    let ok = true;
-    for (let j = 0; j < n.length; j++) if (arr[i + j] !== n[j]) { ok = false; break; }
-    if (ok) return i;
+const cps = (text: string) => Array.from(text);
+const mbStrpos = (haystack: string, needle: string, offset = 0): number | false => {
+  const points = cps(haystack);
+  const needlePoints = cps(needle);
+  for (let i = offset; i + needlePoints.length <= points.length; i++) {
+    let matches = true;
+    for (let j = 0; j < needlePoints.length; j++) if (points[i + j] !== needlePoints[j]) { matches = false; break; }
+    if (matches) return i;
   }
   return false;
 };
-const mbSubstr = (s: string, start: number, length?: number): string => {
-  const arr = cps(s);
-  const st = start < 0 ? Math.max(arr.length + start, 0) : start;
-  if (length === undefined) return arr.slice(st).join('');
-  const end = length < 0 ? arr.length + length : st + length;
-  return arr.slice(st, Math.max(end, st)).join('');
+const mbSubstr = (text: string, start: number, length?: number): string => {
+  const points = cps(text);
+  const from = start < 0 ? Math.max(points.length + start, 0) : start;
+  if (length === undefined) return points.slice(from).join('');
+  const end = length < 0 ? points.length + length : from + length;
+  return points.slice(from, Math.max(end, from)).join('');
 };
 
 export function unicodeToKrutidev(unicodeSubstring: string): string {
-  let m = unicodeSubstring;
+  let text = unicodeSubstring;
 
   // Specialty characters
-  for (const [a, b] of KD_SPECIAL) m = replaceAll(m, a, b);
+  for (const [from, to] of KD_SPECIAL) text = replaceAll(text, from, to);
 
   // Replace Unicode with ASCII
-  for (let i = 0; i < KD_ONE.length; i++) m = replaceAll(m, KD_ONE[i]!, KD_TWO[i]!);
+  for (let i = 0; i < KD_ONE.length; i++) text = replaceAll(text, KD_ONE[i]!, KD_TWO[i]!);
 
   // Move "f" to correct position
-  m = '  ' + m + '  ';
-  let posF = mbStrpos(m, 'f');
+  text = '  ' + text + '  ';
+  let posF = mbStrpos(text, 'f');
   while (posF !== false) {
-    m = mbSubstr(m, 0, posF - 1) + mbSubstr(m, posF, 1) + mbSubstr(m, posF - 1, 1) + mbSubstr(m, posF + 1);
-    posF = mbStrpos(m, 'f', posF + 1);
+    text = mbSubstr(text, 0, posF - 1) + mbSubstr(text, posF, 1) + mbSubstr(text, posF - 1, 1) + mbSubstr(text, posF + 1);
+    posF = mbStrpos(text, 'f', posF + 1);
   }
-  m = phpTrim(m);
+  text = phpTrim(text);
 
   // Move "half R" to correct position and replace
-  m = '  ' + m + '  ';
-  let posR = mbStrpos(m, 'j~');
+  text = '  ' + text + '  ';
+  let posR = mbStrpos(text, 'j~');
   while (posR !== false) {
-    const pos = mbStrpos(m, 'j~') as number;
-    m = mbSubstr(m, 0, pos) + mbSubstr(m, pos + 2);
-    const next = mbSubstr(m, posR + 1, 1);
+    const pos = mbStrpos(text, 'j~') as number;
+    text = mbSubstr(text, 0, pos) + mbSubstr(text, pos + 2);
+    const next = mbSubstr(text, posR + 1, 1);
     if (KD_MATRAS.includes(next)) {
-      m = mbSubstr(m, 0, posR + 2) + 'Z' + mbSubstr(m, posR + 2);
+      text = mbSubstr(text, 0, posR + 2) + 'Z' + mbSubstr(text, posR + 2);
     } else {
-      m = mbSubstr(m, 0, posR + 1) + 'Z' + mbSubstr(m, posR + 1);
+      text = mbSubstr(text, 0, posR + 1) + 'Z' + mbSubstr(text, posR + 1);
     }
-    posR = mbStrpos(m, 'j~');
+    posR = mbStrpos(text, 'j~');
   }
-  return phpTrim(m);
+  return phpTrim(text);
 }

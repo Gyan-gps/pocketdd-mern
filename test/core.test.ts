@@ -3,7 +3,7 @@ import zlib from 'node:zlib';
 import { after, describe, it } from 'node:test';
 import { pool } from '../src/db/mysql.js';
 import { hashCheck, hashMake } from '../src/core/auth/hash.js';
-import { strRandom } from '../src/core/auth/sanctum.js';
+import { strRandom } from '../src/core/auth/access-tokens.js';
 import { sendCatchLog, sendResponse } from '../src/core/http/response.js';
 import { nowDb, toModelJson } from '../src/core/time.js';
 import { validate } from '../src/core/validation/validator.js';

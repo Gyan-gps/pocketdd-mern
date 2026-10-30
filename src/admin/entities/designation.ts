@@ -8,9 +8,9 @@ import { phpJsonDecodeAssoc } from '../../utils/php/values.js';
 import type { CrudConfig } from '../crud.js';
 import { coerceRow, newRow, storeCoerced } from '../support/catalog-helpers.js';
 import { keepIfJsonEquivalent, onlyColumns } from '../support/directory-helpers.js';
+import { designationValidation } from '../../validators/admin/designation.validator.js';
 
 const FIELDS = ['name', 'officer_mobile_number', 'status'];
-const RULES = { name: 'required|min:5|max:255' };
 
 /**
  * spatie getTranslations(): json_decode of the raw column (non-JSON → []), null/'' entries dropped;
@@ -18,12 +18,14 @@ const RULES = { name: 'required|min:5|max:255' };
  */
 function setTranslation(raw: unknown, value: unknown, locale = 'en'): string {
   const decoded = phpJsonDecodeAssoc(raw);
-  const t: Record<string, unknown> = {};
+  const translations: Record<string, unknown> = {};
   if (decoded && typeof decoded === 'object') {
-    for (const [k, v] of Object.entries(decoded)) if (v !== null && v !== '') t[k] = v;
+    for (const [key, translation] of Object.entries(decoded)) {
+      if (translation !== null && translation !== '') translations[key] = translation;
+    }
   }
-  t[locale] = value;
-  return JSON.stringify(t);
+  translations[locale] = value;
+  return JSON.stringify(translations);
 }
 
 export const designation: CrudConfig = {
@@ -37,7 +39,7 @@ export const designation: CrudConfig = {
     orderBy: [['id', 'desc']],
   },
   fields: { create: FIELDS, update: FIELDS },
-  validation: { create: { rules: RULES }, update: { rules: RULES } },
+  validation: { create: designationValidation, update: designationValidation },
   casts: { status: 'integer' },
   serialize: (row: Row) => ({ ...row, name_raw: row.name, name: translatedAttr(row.name) }),
   hooks: {
@@ -48,9 +50,10 @@ export const designation: CrudConfig = {
     },
     beforeUpdate: async (data, existing) => {
       if ('name' in data) data.name = keepIfJsonEquivalent(existing, 'name', setTranslation(existing.name, data.name));
-      const out = await onlyColumns('designations', data);
-      coerceRow('designations', out);
-      return out;
+      const row = await onlyColumns('designations', data);
+      coerceRow('designations', row);
+      return row;
+
     },
     afterUpdate: (id, data) => storeCoerced('designations', id, data),
   },

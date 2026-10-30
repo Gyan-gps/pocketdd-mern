@@ -5,10 +5,11 @@
 // requires `img` — so every edit must re-upload the image (validation.required otherwise).
 import type { CrudConfig } from '../crud.js';
 import { applySingleUpload } from '../uploads.js';
-import { C } from '../../db/mongo.js';
+import { Business } from '../../models/index.js';
+import { createBusinessImageValidation, updateBusinessImageValidation } from '../../validators/admin/business-image.validator.js';
 import { coerceRow, fieldById, idOptions, newRow } from './business-columns.js';
 
-const DIR = 'uploads/user_images';
+const UPLOAD_DIRECTORY = 'uploads/user_images';
 
 export const businessImage: CrudConfig = {
   route: 'business-image',
@@ -20,32 +21,26 @@ export const businessImage: CrudConfig = {
     sortable: ['business_id', 'img'],
   },
   fields: { create: ['business_id', 'img'], update: ['business_id', 'img'] },
-  validation: {
-    create: {
-      rules: { img: 'required|mimetypes:image/png,image/jpg,image/jpeg,image/svg', business_id: 'required' },
-      messages: { 'img.mimetypes': 'Please upload the image in PNG, JPEG, or JPG format.' },
-    },
-    update: { rules: { img: 'required', business_id: 'required' } },
-  },
+  validation: { create: createBusinessImageValidation, update: updateBusinessImageValidation },
   // Create: Business::orderBy('id','desc')->pluck('name','id'). Update: businesses without any image row
   // (whereNotIn all business_iamges.business_id — Laravel quirk: excludes the entry's own business too).
   formOptions: async (_req, id) => ({
-    business_id: await idOptions(C.businesses, id ? { 'images.0': { $exists: false } } : {}, 'name', { _id: -1 }),
+    business_id: await idOptions(Business, id ? { 'images.0': { $exists: false } } : {}, 'name', { _id: -1 }),
   }),
   serialize: async (row) => {
-    const b = await fieldById(C.businesses, row.business_id, 'name');
-    return { ...row, business_name: b ? b.v : null };
+    const business = await fieldById(Business, row.business_id, 'name');
+    return { ...row, business_name: business ? business.value : null };
   },
   hooks: {
     beforeCreate: (data, req) => {
-      const out = { ...data };
-      applySingleUpload(out, req.input, 'img', DIR, null);
-      return newRow('business_iamges', out);
+      const image = { ...data };
+      applySingleUpload(image, req.input, 'img', UPLOAD_DIRECTORY, null);
+      return newRow('business_iamges', image);
     },
     beforeUpdate: (data, existing, req) => {
-      const out = { ...data };
-      applySingleUpload(out, req.input, 'img', DIR, existing.img);
-      return coerceRow('business_iamges', out);
+      const image = { ...data };
+      applySingleUpload(image, req.input, 'img', UPLOAD_DIRECTORY, existing.img);
+      return coerceRow('business_iamges', image);
     },
   },
 };

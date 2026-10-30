@@ -6,7 +6,8 @@
 //   jobs-p7 [clean]     → prints Laravel `jobs` (PHP queue, MySQL) and Node `jobs` (MongoDB) rows for the job-test ids, then deletes them
 import { readFileSync, writeFileSync } from 'node:fs';
 import { all, exec, pool } from '../../src/db/mysql.js';
-import { C, closeMongo, col, toRows } from '../../src/db/mongo.js';
+import { C, closeMongo, col } from '../../scripts/lib/raw-collections.js';
+import { toRows } from '../../src/db/mongo.js';
 import { resetMysqlFixtures } from '../support/jobs-fixtures.js';
 import { TODAY } from '../../scripts/seed/06-jobs.js';
 

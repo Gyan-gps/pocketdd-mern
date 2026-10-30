@@ -6,7 +6,9 @@
  */
 import type { Document } from 'mongodb';
 import { all, first, pool } from '../src/db/mysql.js';
-import { C, EMBEDDED, closeMongo, col, connectMongo, type EmbeddedTable, type Row } from '../src/db/mongo.js';
+import { connectDatabase, disconnectDatabase } from '../src/config/database.js';
+import { C, EMBEDDED, col } from './lib/raw-collections.js';
+import { type EmbeddedTable, type Row } from '../src/db/mongo.js';
 import { ensureIndexes } from '../src/db/indexes.js';
 import { env } from '../src/config/env.js';
 
@@ -81,7 +83,7 @@ async function autoIncrement(table: string): Promise<number> {
  * for the parity tests, which re-sync before every Node request).
  */
 export async function migrate({ refresh = false } = {}): Promise<string[]> {
-  await connectMongo();
+  await connectDatabase();
   await col('_orphans').deleteMany({});
   const counters: Document[] = [];
   const report: string[] = [];
@@ -144,6 +146,6 @@ if (process.argv[1]?.replace(/\\/g, '/').endsWith('scripts/migrate-from-mysql.ts
     console.log(report.join('\n'));
   } finally {
     await pool.end();
-    await closeMongo();
+    await disconnectDatabase();
   }
 }

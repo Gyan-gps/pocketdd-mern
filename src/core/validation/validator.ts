@@ -22,21 +22,21 @@ export interface UploadedFile {
   path?: string;
 }
 
-const isFile = (v: unknown): v is UploadedFile =>
-  !!v && typeof v === 'object' && 'originalname' in v && 'size' in v;
-const isAssoc = (v: unknown): v is Record<string, unknown> =>
-  !!v && typeof v === 'object' && !isFile(v);
-const isNumeric = (v: unknown) =>
-  (typeof v === 'number' && Number.isFinite(v)) ||
-  (typeof v === 'string' && /^\s*[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?\s*$/i.test(v));
+const isFile = (value: unknown): value is UploadedFile =>
+  !!value && typeof value === 'object' && 'originalname' in value && 'size' in value;
+const isAssoc = (value: unknown): value is Record<string, unknown> =>
+  !!value && typeof value === 'object' && !isFile(value);
+const isNumeric = (value: unknown) =>
+  (typeof value === 'number' && Number.isFinite(value)) ||
+  (typeof value === 'string' && /^\s*[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?\s*$/i.test(value));
 
 /** Laravel `validateRequired`. */
-function present(v: unknown): boolean {
-  if (v === null || v === undefined) return false;
-  if (typeof v === 'string') return v.trim() !== '';
-  if (Array.isArray(v)) return v.length > 0;
-  if (isFile(v)) return v.originalname !== '';
-  if (isAssoc(v)) return Object.keys(v).length > 0;
+function present(value: unknown): boolean {
+  if (value === null || value === undefined) return false;
+  if (typeof value === 'string') return value.trim() !== '';
+  if (Array.isArray(value)) return value.length > 0;
+  if (isFile(value)) return value.originalname !== '';
+  if (isAssoc(value)) return Object.keys(value).length > 0;
   return true;
 }
 
@@ -65,109 +65,109 @@ function expand(input: Input, pattern: string): string[] {
   const { value } = getPath(input, head!);
   if (!value || typeof value !== 'object') return [];
   const tail = rest.join('.*');
-  return Object.keys(value).flatMap((k) => expand(input, `${head}.${k}${tail}`));
+  return Object.keys(value).flatMap((key) => expand(input, `${head}.${key}${tail}`));
 }
 
-function sizeKind(v: unknown, rules: string[]): 'numeric' | 'array' | 'file' | 'string' {
-  if (isFile(v)) return 'file';
-  if (Array.isArray(v)) return 'array';
-  if (rules.some((r) => r === 'numeric' || r === 'integer') && isNumeric(v)) return 'numeric';
+function sizeKind(value: unknown, rules: string[]): 'numeric' | 'array' | 'file' | 'string' {
+  if (isFile(value)) return 'file';
+  if (Array.isArray(value)) return 'array';
+  if (rules.some((rule) => rule === 'numeric' || rule === 'integer') && isNumeric(value)) return 'numeric';
   return 'string';
 }
 
-function sizeOf(v: unknown, kind: string): number {
-  if (kind === 'file') return (v as UploadedFile).size / 1024;
-  if (kind === 'array') return (v as unknown[]).length;
-  if (kind === 'numeric') return Number(v);
-  return [...String(v ?? '')].length;
+function sizeOf(value: unknown, kind: string): number {
+  if (kind === 'file') return (value as UploadedFile).size / 1024;
+  if (kind === 'array') return (value as unknown[]).length;
+  if (kind === 'numeric') return Number(value);
+  return [...String(value ?? '')].length;
 }
 
 const IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/gif', 'image/bmp', 'image/svg+xml', 'image/webp'];
 
-async function passes(rule: string, params: string[], v: unknown, rules: string[], input?: Input): Promise<boolean> {
+async function passes(rule: string, params: string[], value: unknown, rules: string[], input?: Input): Promise<boolean> {
   switch (rule) {
     case 'required':
-      return present(v);
+      return present(value);
     case 'nullable':
     case 'sometimes':
     case 'bail':
       return true;
     case 'string':
-      return typeof v === 'string';
+      return typeof value === 'string';
     case 'array':
-      return Array.isArray(v) || isAssoc(v);
+      return Array.isArray(value) || isAssoc(value);
     case 'numeric':
-      return isNumeric(v);
+      return isNumeric(value);
     case 'integer':
-      return (typeof v === 'number' && Number.isInteger(v)) || (typeof v === 'string' && /^[+-]?\d+$/.test(v));
+      return (typeof value === 'number' && Number.isInteger(value)) || (typeof value === 'string' && /^[+-]?\d+$/.test(value));
     case 'boolean':
-      return [true, false, 0, 1, '0', '1'].includes(v as never);
+      return [true, false, 0, 1, '0', '1'].includes(value as never);
     case 'digits': {
-      const s = typeof v === 'number' ? String(v) : v;
-      return typeof s === 'string' && /^\d+$/.test(s) && s.length === Number(params[0]);
+      const digits = typeof value === 'number' ? String(value) : value;
+      return typeof digits === 'string' && /^\d+$/.test(digits) && digits.length === Number(params[0]);
     }
     case 'in':
-      return (typeof v === 'string' || typeof v === 'number') && params.includes(String(v));
+      return (typeof value === 'string' || typeof value === 'number') && params.includes(String(value));
     case 'email':
-      return typeof v === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+      return typeof value === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
     case 'url':
-      return typeof v === 'string' && /^https?:\/\/[^\s]+$/i.test(v);
+      return typeof value === 'string' && /^https?:\/\/[^\s]+$/i.test(value);
     case 'date':
-      return typeof v === 'string' && !Number.isNaN(Date.parse(v));
+      return typeof value === 'string' && !Number.isNaN(Date.parse(value));
     case 'max':
     case 'min': {
-      const kind = sizeKind(v, rules);
-      if (kind === 'numeric' && !isNumeric(v)) return false;
-      const size = sizeOf(v, kind);
+      const kind = sizeKind(value, rules);
+      if (kind === 'numeric' && !isNumeric(value)) return false;
+      const size = sizeOf(value, kind);
       return rule === 'max' ? size <= Number(params[0]) : size >= Number(params[0]);
     }
     case 'image':
-      return isFile(v) && IMAGE_MIMES.includes(v.mimetype);
+      return isFile(value) && IMAGE_MIMES.includes(value.mimetype);
     case 'mimes': {
-      if (!isFile(v)) return false;
-      const ext = v.originalname.split('.').pop()?.toLowerCase() ?? '';
-      const allowed = params.map((p) => p.toLowerCase());
+      if (!isFile(value)) return false;
+      const ext = value.originalname.split('.').pop()?.toLowerCase() ?? '';
+      const allowed = params.map((param) => param.toLowerCase());
       return allowed.includes(ext) || (ext === 'jpeg' && allowed.includes('jpg')) || (ext === 'jpg' && allowed.includes('jpeg'));
     }
     case 'after_or_equal': {
       // compareDates(): the parameter is a date, else the value of that field; null other date → passes (PHP 8 int >= null).
-      if (typeof v !== 'string' && typeof v !== 'number') return false;
-      const ts = Date.parse(String(v));
-      if (Number.isNaN(ts)) return false;
+      if (typeof value !== 'string' && typeof value !== 'number') return false;
+      const timestamp = Date.parse(String(value));
+      if (Number.isNaN(timestamp)) return false;
       let other = Date.parse(params[0] ?? '');
       if (Number.isNaN(other)) {
-        const ov = input ? getPath(input, params[0] ?? '').value : undefined;
-        if (ov === null || ov === undefined) return true;
-        other = Date.parse(String(ov));
+        const otherValue = input ? getPath(input, params[0] ?? '').value : undefined;
+        if (otherValue === null || otherValue === undefined) return true;
+        other = Date.parse(String(otherValue));
         if (Number.isNaN(other)) return true;
       }
-      return ts >= other;
+      return timestamp >= other;
     }
     case 'required_if': {
       // required_if:other,value… — required when the other field (string-compared) equals one of the values.
       const other = input ? getPath(input, params[0] ?? '').value : undefined;
       const otherStr = other === true ? '1' : other === false ? '0' : other === null || other === undefined ? '' : String(other);
       if (!params.slice(1).includes(otherStr)) return true;
-      return present(v);
+      return present(value);
     }
     case 'size':
-      return sizeOf(v, sizeKind(v, rules)) === Number(params[0]);
+      return sizeOf(value, sizeKind(value, rules)) === Number(params[0]);
     case 'regex': {
       // `regex:/pattern/flags` (params re-joined: the pattern may contain commas).
-      if (typeof v !== 'string' && typeof v !== 'number') return false;
-      const m = /^\/(.*)\/([a-z]*)$/s.exec(params.join(','));
-      if (!m) return false;
-      return new RegExp(m[1]!, m[2]!.replace(/[^imsu]/g, '')).test(String(v));
+      if (typeof value !== 'string' && typeof value !== 'number') return false;
+      const match = /^\/(.*)\/([a-z]*)$/s.exec(params.join(','));
+      if (!match) return false;
+      return new RegExp(match[1]!, match[2]!.replace(/[^imsu]/g, '')).test(String(value));
     }
     case 'mimetypes': {
       // Laravel compares the server-guessed MIME type (finfo): sniff common image signatures, else the client type.
-      if (!isFile(v)) return false;
-      const b = v.buffer;
-      let mime = v.mimetype;
-      if (b && b.length >= 4) {
-        if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) mime = 'image/png';
-        else if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) mime = 'image/jpeg';
-        else if (b.subarray(0, 4).toString() === 'GIF8') mime = 'image/gif';
+      if (!isFile(value)) return false;
+      const bytes = value.buffer;
+      let mime = value.mimetype;
+      if (bytes && bytes.length >= 4) {
+        if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) mime = 'image/png';
+        else if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) mime = 'image/jpeg';
+        else if (bytes.subarray(0, 4).toString() === 'GIF8') mime = 'image/gif';
       }
       return params.includes(mime) || params.includes(`${mime.split('/')[0]}/*`);
     }
@@ -176,10 +176,10 @@ async function passes(rule: string, params: string[], v: unknown, rules: string[
       const [table, column] = params;
       if (rule === 'unique' && params[2] !== undefined && params[2] !== '' && params[2] !== 'NULL') {
         // unique:table,column,ignoreId[,idColumn] — Rule::unique()->ignore($id).
-        const c = await countWhere(table!, column!, v, { column: params[3] ?? 'id', value: params[2] });
-        return c === 0;
+        const matching = await countWhere(table!, column!, value, { column: params[3] ?? 'id', value: params[2] });
+        return matching === 0;
       }
-      const count = await countWhere(table!, column!, v);
+      const count = await countWhere(table!, column!, value);
       return rule === 'exists' ? count > 0 : count === 0;
     }
     default:
@@ -193,7 +193,7 @@ async function message(
   pattern: string,
   rule: string,
   params: string[],
-  v: unknown,
+  value: unknown,
   rules: string[],
   custom: Messages,
 ): Promise<string> {
@@ -204,7 +204,7 @@ async function message(
     if (typeof customLine === 'string' && customLine !== `validation.custom.${pattern}.${rule}`) template = customLine;
   }
   if (template === undefined) {
-    const key = SIZE_RULES.has(rule) ? `validation.${rule}.${sizeKind(v, rules)}` : `validation.${rule}`;
+    const key = SIZE_RULES.has(rule) ? `validation.${rule}.${sizeKind(value, rules)}` : `validation.${rule}`;
     const line = await trans(key);
     template = typeof line === 'string' ? line : key;
   }
@@ -219,7 +219,7 @@ async function message(
     .replace(/:values/g, params.join(', '))
     // replaceInputPlaceholder(): scalar/null values only (getDisplayableValue: null → 'empty', bool → 'true'/'false').
     .replace(/:input/g, () =>
-      v === null || v === undefined ? 'empty' : typeof v === 'boolean' ? String(v) : typeof v === 'object' ? ':input' : String(v),
+      value === null || value === undefined ? 'empty' : typeof value === 'boolean' ? String(value) : typeof value === 'object' ? ':input' : String(value),
     );
 }
 
@@ -247,7 +247,7 @@ export async function validate(input: Input, rules: Rules, custom: Messages = {}
   // ValidationRuleParser::explodeRules(): wildcard rules are unset and their expansions appended after
   // the explicit ones, so `items.*.x` errors always follow plain-attribute errors.
   const entries = Object.entries(rules);
-  const ordered = [...entries.filter(([p]) => !p.includes('*')), ...entries.filter(([p]) => p.includes('*'))];
+  const ordered = [...entries.filter(([key]) => !key.includes('*')), ...entries.filter(([key]) => key.includes('*'))];
   for (const [pattern, ruleString] of ordered) {
     const list = ruleString.split('|').filter(Boolean);
     const nullable = list.includes('nullable');
@@ -270,4 +270,15 @@ export async function validate(input: Input, rules: Rules, custom: Messages = {}
     }
   }
   return new ValidationResult(errors);
+}
+
+/** A request's rules and custom messages, declared in src/validators/<feature>.validator.ts. */
+export interface ValidationSchema {
+  rules: Rules;
+  messages?: Messages;
+}
+
+/** Validate `input` against a schema from src/validators (same as `validate(input, rules, messages)`). */
+export function validateRequest(input: Input, schema: ValidationSchema): Promise<ValidationResult> {
+  return validate(input, schema.rules, schema.messages ?? {});
 }
